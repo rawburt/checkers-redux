@@ -898,6 +898,8 @@ mod test {
 
     #[test]
     fn test_negamax_is_same_as_alpha_beta_and_table() {
+        // Alpha-Beta and Transposition Table's are optimizations of Minimax. Therefore,
+        // using these optimizations should yield the exact same game sequences.
         let mut board1 = Board::new();
         let mut move_list_1 = Vec::new();
         loop {
