@@ -1,6 +1,8 @@
-use std::fmt;
+use clap::{Parser, ValueEnum};
+use rand::seq::SliceRandom;
+use std::{collections::HashMap, fmt};
 
-#[derive(Debug, PartialEq, Clone, Copy)]
+#[derive(Debug, PartialEq, Clone, Copy, ValueEnum, Eq, Hash)]
 enum Player {
     Player1,
     Player2,
@@ -15,7 +17,7 @@ impl Player {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 struct Piece {
     player: Player,
     king: bool,
@@ -74,7 +76,7 @@ impl fmt::Display for Piece {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 enum Square {
     Invalid,
     Empty,
@@ -159,8 +161,10 @@ const VALID_SQUARES: [usize; 32] = [
 const PLAYER1_START: [usize; 12] = [5, 6, 7, 8, 10, 11, 12, 13, 14, 15, 16, 17];
 const PLAYER2_START: [usize; 12] = [28, 29, 30, 31, 32, 33, 34, 35, 37, 38, 39, 40];
 const EMPTY_START: [usize; 8] = [19, 20, 21, 22, 23, 24, 25, 26];
+const PLAYER1_KINGS: [usize; 4] = [37, 38, 39, 40];
+const PLAYER2_KINGS: [usize; 4] = [5, 6, 7, 8];
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq, Hash, Copy, Clone)]
 struct Board {
     squares: [Square; 46],
 }
@@ -180,6 +184,7 @@ impl Board {
         Self { squares }
     }
 
+    #[allow(dead_code)]
     fn empty() -> Self {
         let mut squares = [Square::Invalid; 46];
         for id in VALID_SQUARES {
@@ -192,6 +197,7 @@ impl Board {
         self.squares[id]
     }
 
+    #[allow(dead_code)]
     fn set(&mut self, id: usize, square: Square) {
         self.squares[id] = square;
     }
@@ -248,7 +254,7 @@ impl Board {
         piece: Piece,
         id: usize,
         start: usize,
-        mut visited: &mut Vec<usize>,
+        visited: &mut Vec<usize>,
     ) -> Vec<Movement> {
         let mut movements = Vec::new();
         for m in piece.movements() {
@@ -258,28 +264,22 @@ impl Board {
                 continue;
             }
             if let Square::Taken(jumped_piece) = self.squares[id_jumped] {
-                if jumped_piece.player != player {
-                    if Square::Empty == self.squares[id_to] || id_to == start {
-                        let from = SquareState::piece(id, piece);
-                        let to = SquareState::empty(id_to);
-                        let jumped = SquareState::piece(id_jumped, jumped_piece);
-                        visited.push(id_to);
-                        let multi_jumps =
-                            self.jump_moves_at(player, piece, id_to, start, &mut visited);
-                        visited.pop();
-                        if multi_jumps.is_empty() {
-                            let movement = Movement::jump(from, to, jumped);
+                if jumped_piece.player != player && Square::Empty == self.squares[id_to]
+                    || id_to == start
+                {
+                    let from = SquareState::piece(id, piece);
+                    let to = SquareState::empty(id_to);
+                    let jumped = SquareState::piece(id_jumped, jumped_piece);
+                    visited.push(id_to);
+                    let multi_jumps = self.jump_moves_at(player, piece, id_to, start, visited);
+                    visited.pop();
+                    if multi_jumps.is_empty() {
+                        let movement = Movement::jump(from, to, jumped);
+                        movements.push(movement);
+                    } else {
+                        for mj in multi_jumps {
+                            let movement = Movement::multi_jump(from, to, jumped, Box::new(mj));
                             movements.push(movement);
-                        } else {
-                            for mj in multi_jumps {
-                                let movement = Movement::multi_jump(
-                                    from.clone(),
-                                    to.clone(),
-                                    jumped.clone(),
-                                    Box::new(mj),
-                                );
-                                movements.push(movement);
-                            }
                         }
                     }
                 }
@@ -294,14 +294,14 @@ impl Board {
         if let Some(jumped_state) = &movement.jumped {
             self.squares[jumped_state.id] = Square::Empty;
             if let Some(next_movement) = &movement.next {
-                self.do_movement(&*next_movement);
+                self.do_movement(next_movement);
             }
         }
     }
 
     fn undo_movement(&mut self, movement: &Movement) {
         if let Some(next_movement) = &movement.next {
-            self.undo_movement(&*next_movement);
+            self.undo_movement(next_movement);
         }
         self.squares[movement.from.id] = self.squares[movement.to.id];
         self.squares[movement.to.id] = Square::Empty;
@@ -310,11 +310,12 @@ impl Board {
         }
     }
 
+    #[allow(dead_code)]
     fn piece_count(&self) -> (u8, u8) {
         let mut p1 = 0;
         let mut p2 = 0;
         for id in VALID_SQUARES {
-            if let Square::Taken(piece) = &self.squares[id] {
+            if let Square::Taken(piece) = self.squares[id] {
                 if piece.player == Player::Player1 {
                     p1 += 1;
                 } else {
@@ -323,6 +324,23 @@ impl Board {
             }
         }
         (p1, p2)
+    }
+
+    fn mark_kings(&mut self) {
+        for id in PLAYER1_KINGS {
+            if let Square::Taken(piece) = self.squares[id] {
+                if piece.player == Player::Player1 && !piece.king {
+                    self.squares[id] = Square::Taken(Piece::player1_king());
+                }
+            }
+        }
+        for id in PLAYER2_KINGS {
+            if let Square::Taken(piece) = self.squares[id] {
+                if piece.player == Player::Player2 && !piece.king {
+                    self.squares[id] = Square::Taken(Piece::player2_king());
+                }
+            }
+        }
     }
 }
 
@@ -392,12 +410,10 @@ fn evaluate(board: &Board) -> i32 {
                 } else {
                     pawns += 1;
                 }
+            } else if piece.king {
+                kings -= 1;
             } else {
-                if piece.king {
-                    kings -= 1;
-                } else {
-                    pawns -= 1;
-                }
+                pawns -= 1;
             }
         }
     }
@@ -407,33 +423,85 @@ fn evaluate(board: &Board) -> i32 {
 const MAX: i32 = i32::MAX - 1;
 const MIN: i32 = i32::MIN + 1;
 
-fn negamax(player: Player, board: &mut Board, depth: u32, mut alpha: i32, beta: i32, color: i32) -> i32 {
+fn negamax(
+    player: Player,
+    board: &mut Board,
+    depth: u8,
+    mut alpha: i32,
+    mut beta: i32,
+    color: i32,
+    context: &mut Context,
+) -> i32 {
+    let alpha_orig = alpha;
+
+    if let Some(table) = &context.transposition_table {
+        if let Some(entry) = table.get(board) {
+            if entry.depth >= depth {
+                match entry.flag {
+                    Flag::Exact => {
+                        context.table_hits += 1;
+                        return entry.value;
+                    }
+                    Flag::Lowerbound => {
+                        alpha = alpha.max(entry.value);
+                    }
+                    Flag::Upperbound => {
+                        beta = beta.min(entry.value);
+                    }
+                };
+                if alpha >= beta {
+                    context.table_hits += 1;
+                    return entry.value;
+                }
+            }
+        }
+    }
+
     if depth == 0 {
         return color * evaluate(board);
     }
-    
+
     let movements = board.movements(player);
-    
-    if movements.is_empty() {
-        return color * MIN;
-    }
-    
     let mut value = MIN;
 
+    if movements.is_empty() {
+        return color * value;
+    }
+
     for movement in movements {
+        context.explored += 1;
         board.do_movement(&movement);
-        value = value.max(-negamax(player, board, depth - 1, -beta, -alpha, -color));
+        value = value.max(-negamax(
+            player,
+            board,
+            depth - 1,
+            -beta,
+            -alpha,
+            -color,
+            context,
+        ));
         board.undo_movement(&movement);
         alpha = alpha.max(value);
-        if alpha >= beta {
+        if alpha >= beta && context.alpha_beta {
             break;
         }
+    }
+
+    if let Some(table) = &mut context.transposition_table {
+        let flag = if value <= alpha_orig {
+            Flag::Upperbound
+        } else if value >= beta {
+            Flag::Lowerbound
+        } else {
+            Flag::Exact
+        };
+        table.insert(board, value, flag, depth);
     }
 
     value
 }
 
-fn negamax_root(player: Player, board: &mut Board) -> Option<Movement> {
+fn negamax_root(player: Player, board: &mut Board, context: &mut Context) -> Option<Movement> {
     let movements = board.movements(player);
 
     if movements.is_empty() {
@@ -446,7 +514,7 @@ fn negamax_root(player: Player, board: &mut Board) -> Option<Movement> {
     let mut movement = None;
 
     for m in movements {
-        let v = negamax(player, board, 6, MIN, MAX, color);
+        let v = negamax(player, board, 6, MIN, MAX, color, context);
         if v > value {
             movement = Some(m);
             value = v;
@@ -456,19 +524,107 @@ fn negamax_root(player: Player, board: &mut Board) -> Option<Movement> {
     movement
 }
 
+#[derive(Debug)]
+enum Flag {
+    Exact,
+    Lowerbound,
+    Upperbound,
+}
 
-fn main() {
-    let mut board = Board::new();
-    let mut turn = Player::Player1;
-    loop {
-        if let Some(movement) = negamax_root(turn, &mut board) {
-            board.do_movement(&movement);
-            turn = turn.other();
-        } else {
-            break;
+#[derive(Debug)]
+struct Entry {
+    value: i32,
+    depth: u8,
+    flag: Flag,
+}
+
+#[derive(Debug)]
+struct Table {
+    entries: HashMap<Board, Entry>,
+}
+
+impl Table {
+    fn new() -> Self {
+        Self {
+            entries: HashMap::new(),
         }
     }
+
+    fn get(&self, board: &Board) -> Option<&Entry> {
+        self.entries.get(board)
+    }
+
+    fn insert(&mut self, board: &Board, value: i32, flag: Flag, depth: u8) {
+        if let Some(entry) = self.entries.get_mut(board) {
+            entry.value = value;
+            entry.flag = flag;
+            entry.depth = depth;
+        } else {
+            self.entries.insert(*board, Entry { value, flag, depth });
+        }
+    }
+}
+
+#[derive(Debug)]
+struct Context {
+    alpha_beta: bool,
+    transposition_table: Option<Table>,
+    explored: u32,
+    table_hits: u32,
+}
+
+#[derive(Parser)]
+struct Cli {
+    #[arg(short, long)]
+    alpha_beta: bool,
+    #[arg(short, long)]
+    transposition_table: bool,
+    #[arg(long, value_enum, default_value = "player1")]
+    ai: Player,
+}
+
+fn main() {
+    let cli = Cli::parse();
+
+    let mut context = Context {
+        alpha_beta: cli.alpha_beta,
+        transposition_table: None,
+        explored: 0,
+        table_hits: 0,
+    };
+
+    if cli.transposition_table {
+        context.transposition_table = Some(Table::new());
+    }
+
+    let mut board = Board::new();
+    let mut turn = Player::Player1;
+
+    loop {
+        if turn == cli.ai {
+            if let Some(movement) = negamax_root(turn, &mut board, &mut context) {
+                board.do_movement(&movement);
+                turn = turn.other();
+            } else {
+                break;
+            }
+        } else {
+            let movements = board.movements(turn);
+            if movements.is_empty() {
+                break;
+            }
+            if let Some(movement) = movements.choose(&mut rand::thread_rng()) {
+                board.do_movement(movement);
+                turn = turn.other();
+            } else {
+                panic!();
+            }
+        }
+        board.mark_kings();
+    }
     dbg!(turn);
+    dbg!(context.explored);
+    dbg!(context.table_hits);
     println!("{}", board);
 }
 
@@ -647,5 +803,9 @@ mod test {
         );
         assert!(jumps.iter().any(|m| *m == movement));
     }
-}
 
+    #[test]
+    fn test_negamax_is_same_alpha_beta() {
+        // TODO: test that negamax is same even with optimizations
+    }
+}
