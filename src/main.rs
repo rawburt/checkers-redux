@@ -8,14 +8,14 @@ enum Player {
     Player2,
 }
 
-impl Player {
-    fn other(&self) -> Player {
-        match self {
-            Self::Player1 => Self::Player2,
-            Self::Player2 => Self::Player1,
-        }
-    }
-}
+// impl Player {
+//     fn other(&self) -> Player {
+//         match self {
+//             Self::Player1 => Self::Player2,
+//             Self::Player2 => Self::Player1,
+//         }
+//     }
+// }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 struct Piece {
@@ -417,7 +417,7 @@ fn evaluate(board: &Board) -> i32 {
             }
         }
     }
-    (100 * pawns) + (130 * kings)
+    (1 * pawns) + (3 * kings)
 }
 
 const MAX: i32 = i32::MAX - 1;
@@ -508,9 +508,9 @@ fn negamax_root(player: Player, board: &mut Board, context: &mut Context) -> Opt
         return None;
     }
 
-    let color = if Player::Player1 == player { 1 } else { -1 };
+    let color = if Player::Player1 == player { -1 } else { 1 };
 
-    let mut value = MIN;
+    let mut value = MIN - 1;
     let mut movement = None;
 
     for m in movements {
@@ -579,8 +579,6 @@ struct Cli {
     alpha_beta: bool,
     #[arg(short, long)]
     transposition_table: bool,
-    #[arg(long, value_enum, default_value = "player1")]
-    ai: Player,
 }
 
 fn main() {
@@ -597,35 +595,54 @@ fn main() {
         context.transposition_table = Some(Table::new());
     }
 
-    let mut board = Board::new();
-    let mut turn = Player::Player1;
+    let mut player1 = 0;
+    let mut player2 = 0;
 
-    loop {
-        if turn == cli.ai {
-            if let Some(movement) = negamax_root(turn, &mut board, &mut context) {
+    for _ in 0..100 {
+        let mut board = Board::new();
+        let loser;
+        // let mut moves = 0;
+        loop {
+            if let Some(movement) = negamax_root(Player::Player1, &mut board, &mut context) {
                 board.do_movement(&movement);
-                turn = turn.other();
+                // moves += 1;
+                // dbg!(movement);
+                // println!("{}", board);
             } else {
+                // dbg!("negamax");
+                loser = Player::Player1;
                 break;
             }
-        } else {
-            let movements = board.movements(turn);
+            board.mark_kings();
+
+            let movements = board.movements(Player::Player2);
             if movements.is_empty() {
+                // dbg!("empty");
+                loser = Player::Player2;
                 break;
             }
             if let Some(movement) = movements.choose(&mut rand::thread_rng()) {
                 board.do_movement(movement);
-                turn = turn.other();
+                // moves += 1;
+                // dbg!(movement);
+                // println!("{}", board);
             } else {
                 panic!();
             }
+            board.mark_kings();
         }
-        board.mark_kings();
+        match loser {
+            Player::Player1 => player2 += 1,
+            Player::Player2 => player1 += 1,
+        };
     }
-    dbg!(turn);
-    dbg!(context.explored);
-    dbg!(context.table_hits);
-    println!("{}", board);
+    dbg!(player1);
+    dbg!(player2);
+    // dbg!(turn);
+    // dbg!(context.explored);
+    // dbg!(context.table_hits);
+    // dbg!(moves);
+    // println!("{}", board);
 }
 
 #[cfg(test)]
@@ -802,10 +819,82 @@ mod test {
             )),
         );
         assert!(jumps.iter().any(|m| *m == movement));
+        board.do_movement(&movement);
+        assert_eq!(board.get(16), Square::Empty);
+        assert_eq!(board.get(25), Square::Empty);
+        assert_eq!(board.get(24), Square::Empty);
+        assert_eq!(board.get(15), Square::Empty);
+        board.undo_movement(&movement);
+        assert_eq!(board.get(16), Square::Taken(Piece::player2_pawn()));
+        assert_eq!(board.get(25), Square::Taken(Piece::player2_pawn()));
+        assert_eq!(board.get(24), Square::Taken(Piece::player2_pawn()));
+        assert_eq!(board.get(15), Square::Taken(Piece::player2_pawn()));
     }
 
     #[test]
-    fn test_negamax_is_same_alpha_beta() {
-        // TODO: test that negamax is same even with optimizations
+    fn test_negamax_is_same_as_alpha_beta_and_table() {
+        let mut ctx1 = Context {
+            alpha_beta: true,
+            transposition_table: None,
+            explored: 0,
+            table_hits: 0,
+        };
+        let mut ctx2 = Context {
+            alpha_beta: false,
+            transposition_table: None,
+            explored: 0,
+            table_hits: 0,
+        };
+        let mut board1 = Board::new();
+        let mut move_list_1 = Vec::new();
+        loop {
+            if let Some(movement) = negamax_root(Player::Player1, &mut board1, &mut ctx1) {
+                board1.do_movement(&movement);
+                move_list_1.push(movement);
+            } else {
+                break;
+            }
+            board1.mark_kings();
+            if let Some(movement) = negamax_root(Player::Player2, &mut board1, &mut ctx2) {
+                board1.do_movement(&movement);
+                move_list_1.push(movement);
+            } else {
+                break;
+            }
+            board1.mark_kings();
+        }
+
+        let mut ctx3 = Context {
+            alpha_beta: true,
+            transposition_table: Some(Table::new()),
+            explored: 0,
+            table_hits: 0,
+        };
+        let mut ctx4 = Context {
+            alpha_beta: true,
+            transposition_table: None,
+            explored: 0,
+            table_hits: 0,
+        };
+        let mut board2 = Board::new();
+        let mut move_list_2 = Vec::new();
+        loop {
+            if let Some(movement) = negamax_root(Player::Player1, &mut board2, &mut ctx3) {
+                board2.do_movement(&movement);
+                move_list_2.push(movement);
+            } else {
+                break;
+            }
+            board2.mark_kings();
+            if let Some(movement) = negamax_root(Player::Player2, &mut board2, &mut ctx4) {
+                board2.do_movement(&movement);
+                move_list_2.push(movement);
+            } else {
+                break;
+            }
+            board2.mark_kings();
+        }
+
+        assert_eq!(move_list_1, move_list_2);
     }
 }
