@@ -166,6 +166,20 @@ const PLAYER2_KINGS: [usize; 4] = [5, 6, 7, 8];
 
 #[derive(Debug, PartialEq, Eq, Hash, Copy, Clone)]
 struct Board {
+    // # https://3dkingdoms.com/checkers/bitboards.htm by Jonathan Kreuzer
+    // #
+    // #    37  38  39  40      |- Player 2 start (X)
+    // #  32  33  34  35        |-
+    // #    28  29  30  31      |-
+    // #  23  24  25  26
+    // #    19  20  21  22
+    // #  14  15  16  17        |-
+    // #    10  11  12  13      |-
+    // #  05  06  07  08        |- Player 1 start (O)
+    //
+    // "Some Studies in Machine Learning Using the Game of Checkers" by Arthur L. Samuel
+    //      -- alternative board layout, similar approach as Jonathan Kreuzer above
+    //
     squares: [Square; 46],
 }
 
@@ -399,16 +413,6 @@ impl fmt::Display for Board {
     }
 }
 
-// # https://3dkingdoms.com/checkers/bitboards.htm
-// #
-// #    37  38  39  40
-// #  32  33  34  35
-// #    28  29  30  31
-// #  23  24  25  26
-// #    19  20  21  22
-// #  14  15  16  17
-// #    10  11  12  13
-// #  05  06  07  08
 const BACK_ROW: [usize; 8] = [5, 6, 7, 8, 37, 38, 39, 40];
 fn evaluate(player: Player, board: &Board) -> i32 {
     let mut pawns = 0;
@@ -448,7 +452,7 @@ fn evaluate(player: Player, board: &Board) -> i32 {
 const MAX: i32 = i32::MAX - 1;
 const MIN: i32 = i32::MIN + 1;
 
-// "Artificial Intelligence: A Modern Approach"
+// "Artificial Intelligence: A Modern Approach, Third Edition" by Stuary Russell and Peter Norvig
 // -- 5.2.1 The minimax algorithm
 fn minimax(
     player: Player,
@@ -484,8 +488,10 @@ fn minimax(
     }
 }
 
-// "Artificial Intelligence: A Modern Approach"
-// -- 5.3 Alpha-Beta Pruning
+// "Artificial Intelligence: A Modern Approach, Third Edition" by Stuary Russell and Peter Norvig
+//      -- 5.3 Alpha-Beta Pruning
+// "A REVIEW OF GAME-TREE PRUNING" by T.A. Marsland (2001)
+//      -- Transposition Table
 fn alphabeta(
     player: Player,
     board: &mut Board,
@@ -651,15 +657,6 @@ impl Table {
     }
 }
 
-// #[derive(Debug)]
-// struct Context {
-//     alpha_beta: bool,
-//     transposition_table: Option<Table>,
-//     depth: u8,
-//     explored: u32,
-//     table_hits: u32,
-// }
-
 #[derive(Parser)]
 struct Cli {
     #[arg(short, long)]
@@ -672,24 +669,8 @@ struct Cli {
     depth: u8,
 }
 
-// checkers-redux --p1-type ai --p1-feature alpha-beta --p1-depth 7 --p1-heuristic b --p2-type ai --p2-feature table --p2-depth 8 --p2-heuristic a -g 23
-
-// output
-
 fn main() {
     let cli = Cli::parse();
-
-    // let mut context = Context {
-    //     alpha_beta: cli.alpha_beta,
-    //     transposition_table: None,
-    //     depth: cli.depth,
-    //     explored: 0,
-    //     table_hits: 0,
-    // };
-
-    // if cli.transposition_table {
-    //     context.transposition_table = Some(Table::new());
-    // }
 
     let mut player1 = 0;
     let mut player2 = 0;
@@ -743,17 +724,6 @@ fn main() {
 #[cfg(test)]
 mod test {
     use super::*;
-
-    // # https://3dkingdoms.com/checkers/bitboards.htm
-    // #
-    // #    37  38  39  40
-    // #  32  33  34  35
-    // #    28  29  30  31
-    // #  23  24  25  26
-    // #    19  20  21  22
-    // #  14  15  16  17
-    // #    10  11  12  13
-    // #  05  06  07  08
 
     #[test]
     fn test_simple_movements() {
