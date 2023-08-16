@@ -449,6 +449,8 @@ fn evaluate(player: Player, board: &Board) -> i32 {
 const MAX: i32 = i32::MAX - 1;
 const MIN: i32 = i32::MIN + 1;
 
+// "Artificial Intelligence: A Modern Approach"
+// -- 5.2.1 The minimax algorithm
 fn minimax(
     player: Player,
     board: &mut Board,
@@ -483,6 +485,8 @@ fn minimax(
     }
 }
 
+// "Artificial Intelligence: A Modern Approach"
+// -- 5.3 Alpha-Beta Pruning
 fn alphabeta(
     player: Player,
     board: &mut Board,
@@ -512,7 +516,7 @@ fn alphabeta(
                 explored,
             ));
             board.undo_movement(&m);
-            if value > beta {
+            if value >= beta {
                 break;
             }
             alpha = alpha.max(value);
@@ -534,7 +538,7 @@ fn alphabeta(
                 explored,
             ));
             board.undo_movement(&m);
-            if value < alpha {
+            if value <= alpha {
                 break;
             }
             beta = beta.min(value);
@@ -686,7 +690,7 @@ fn main() {
             Player::Player1 => player2 += 1,
             Player::Player2 => player1 += 1,
         };
-        dbg!(explored);
+        println!("{}", explored);
         explored = 0;
     }
     dbg!(player1);
