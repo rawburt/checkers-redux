@@ -2,20 +2,81 @@ use std::collections::HashMap;
 
 use crate::checkers::{Board, Movement, Player, Square, VALID_SQUARES};
 
-fn get_score(board: &Board, player: Player) -> i32 {
+// const CENTER: [usize; 6] = [15, 16, 20, 21, 24, 25];
+const BACKP1: [usize; 4] = [5, 6, 7, 8];
+const BACKP2: [usize; 4] = [37, 38, 39, 40];
+
+pub fn evaluation1(board: &Board, player: Player) -> i32 {
+    let mut pawn = 0;
+    let mut king = 0;
+    for id in VALID_SQUARES {
+        if let Square::Taken(piece) = board.get(id) {
+            if piece.get_player() == player {
+                if piece.is_king() {
+                    king += 1;
+                } else {
+                    pawn += 1;
+                }
+            } else if piece.is_king() {
+                king -= 1;
+            } else {
+                pawn -= 1;
+            }
+        }
+    }
+    (1 * pawn) + (3 * king)
+}
+
+pub fn evaluation2(board: &Board, player: Player) -> i32 {
     let mut score = 0;
     for id in VALID_SQUARES {
         if let Square::Taken(piece) = board.get(id) {
             if piece.get_player() == player {
                 if piece.is_king() {
-                    score += 3;
+                    score += 10;
                 } else {
-                    score += 1;
+                    match player {
+                        Player::Player1 => {
+                            if BACKP1.contains(&id) {
+                                score += 1;
+                            }
+                        },
+                        Player::Player2 => {
+                            if BACKP2.contains(&id) {
+                                score += 1;
+                            }
+                        }
+                    };
+                    if player == Player::Player1 && id >= 28 {
+                        score += 7;
+                    } else if player == Player::Player2 && id <= 17 {
+                        score += 7;
+                    } else {
+                        score += 5;
+                    }
                 }
             } else if piece.is_king() {
-                score -= 3;
+                score -= 10;
             } else {
-                score -= 1;
+                if player == Player::Player1 && id <= 17 {
+                    score -= 7;
+                } else if player == Player::Player2 && id >= 28 {
+                    score -= 7;
+                } else {
+                    score -= 5;
+                }
+                match player.other() {
+                    Player::Player1 => {
+                        if BACKP1.contains(&id) {
+                            score -= 1;
+                        }
+                    },
+                    Player::Player2 => {
+                        if BACKP2.contains(&id) {
+                            score -= 1;
+                        }
+                    }
+                };
             }
         }
     }
@@ -60,11 +121,12 @@ struct MinimaxResult {
     movement: Option<Movement>,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Clone, Copy)]
 pub struct MinimaxContext {
     pub table: bool,
     pub depth: u32,
     pub alpha_beta: bool,
+    pub heuristic: fn(&Board, Player) -> i32,
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -84,7 +146,7 @@ fn minimax(
 
     if depth == 0 || movements.is_empty() {
         let result = MinimaxResult {
-            score: get_score(board, player),
+            score: (ctx.heuristic)(board, player),
             movement: best_move,
         };
         return result;
