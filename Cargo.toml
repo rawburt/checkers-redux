@@ -8,3 +8,4 @@ edition = "2021"
 [dependencies]
 clap = { features = ["derive"], version = "4.3" }
 rand = "0.8"
+uuid = { features = ["v4"], version = "1.4" }

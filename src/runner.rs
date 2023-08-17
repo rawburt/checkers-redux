@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use rand::prelude::SliceRandom;
+use uuid::Uuid;
 
 use crate::{
     checkers::{Board, Movement, Player},
@@ -53,12 +54,12 @@ impl Runner {
         }
     }
 
-    pub fn display_stats(&self) {
-        println!("moves = {}", self.stats.moves);
-        println!("explored = {}", self.stats.explored);
-        println!("beta_cuts = {}", self.stats.beta_cuts);
-        println!("tt_exact = {}", self.stats.tt_exact);
-        println!("tt_cuts = {}", self.stats.tt_cuts);
+    pub fn display_stats(&self, player: &str, gameid: &Uuid) {
+        println!("game.{}.{}.moves = {}", &gameid, player, self.stats.moves);
+        println!("game.{}.{}.explored = {}", &gameid, player, self.stats.explored);
+        println!("game.{}.{}.beta_cuts = {}", &gameid, player, self.stats.beta_cuts);
+        println!("game.{}.{}.tt_exact = {}", &gameid, player, self.stats.tt_exact);
+        println!("game.{}.{}.tt_cuts = {}", &gameid, player, self.stats.tt_cuts);
     }
 
     pub fn get_move(&mut self, board: &mut Board, player: Player) -> Option<Movement> {

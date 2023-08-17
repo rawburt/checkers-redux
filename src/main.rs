@@ -1,6 +1,7 @@
 use clap::Parser;
 use runner::Runner;
 use std::collections::HashMap;
+use uuid::Uuid;
 
 mod checkers;
 mod human;
@@ -14,7 +15,7 @@ use crate::minimax::MinimaxContext;
 
 const DRAW_LIMIT: u32 = 40;
 
-fn game_loop(mut player1: Runner, mut player2: Runner) {
+fn game_loop(mut player1: Runner, mut player2: Runner, gameid: &Uuid) {
     let mut board = Board::new();
     let mut draw = 0;
     let mut winner: Option<Player> = None;
@@ -57,17 +58,13 @@ fn game_loop(mut player1: Runner, mut player2: Runner) {
     }
 
     match winner {
-        None => println!("winner = draw"),
-        Some(Player::Player1) => println!("winner = player 1"),
-        Some(Player::Player2) => println!("winner = player 2"),
+        None => println!("game.{}.winner = draw", &gameid),
+        Some(Player::Player1) => println!("game.{}.winner = player 1", &gameid),
+        Some(Player::Player2) => println!("game.{}.winner = player 2", &gameid),
     }
 
-    println!();
-    println!("stats = player 1");
-    player1.display_stats();
-    println!();
-    println!("stats = player 2");
-    player2.display_stats();
+    player1.display_stats("player1", &gameid);
+    player2.display_stats("player2", &gameid);
 }
 
 #[derive(Parser)]
@@ -85,6 +82,8 @@ struct Cli {
 fn main() {
     let cli = Cli::parse();
 
+    let gameid = Uuid::new_v4();
+
     let ctx = MinimaxContext {
         table: cli.transposition_table,
         depth: cli.depth,
@@ -92,21 +91,20 @@ fn main() {
         time: None,
     };
 
-    println!("ai.table = {}", ctx.table);
-    println!("ai.depth = {}", ctx.depth);
-    println!("ai.alpha_beta = {}", ctx.alpha_beta);
-    println!();
+    println!("game.{}.ai.table = {}", &gameid, ctx.table);
+    println!("game.{}.ai.depth = {}", &gameid, ctx.depth);
+    println!("game.{}.ai.alpha_beta = {}", &gameid, ctx.alpha_beta);
 
     if cli.play {
         let player1 = Runner::human(MovementMap::new());
         let player2 = Runner::ai(ctx, HashMap::new());
 
-        game_loop(player1, player2);
+        game_loop(player1, player2, &gameid);
     } else {
         let player1 = Runner::ai(ctx, HashMap::new());
         let player2 = Runner::random();
 
-        game_loop(player1, player2);
+        game_loop(player1, player2, &gameid);
     }
 }
 
