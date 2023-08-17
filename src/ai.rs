@@ -60,7 +60,7 @@ const MIN: i32 = i32::MIN + 1;
 fn negamax(
     player: Player,
     board: &mut Board,
-    table: &mut Option<HashMap<Board, TTEntry>>,
+    table: &mut Option<HashMap<(Player, Board), TTEntry>>,
     stats: &mut Stats,
     depth: u8,
     mut alpha: i32,
@@ -69,7 +69,7 @@ fn negamax(
     let old_alpha = alpha;
 
     if let Some(table) = table {
-        if let Some(entry) = table.get(board) {
+        if let Some(entry) = table.get(&(player, *board)) {
             stats.entry_hits += 1;
             if entry.depth >= depth {
                 match entry.flag {
@@ -126,7 +126,7 @@ fn negamax(
         };
 
         table.insert(
-            *board,
+            (player, *board),
             TTEntry {
                 score: value,
                 depth,
@@ -178,7 +178,7 @@ pub fn search(
     player: Player,
     board: &mut Board,
     alpha_beta: bool,
-    table: &mut Option<HashMap<Board, TTEntry>>,
+    table: &mut Option<HashMap<(Player, Board), TTEntry>>,
     depth: u8,
     stats: &mut Stats,
 ) -> Option<Movement> {
@@ -273,13 +273,13 @@ mod test {
         stats.reset();
         let mut board2 = Board::new();
         let mut move_list_2 = Vec::new();
-        let mut table1 = Some(HashMap::new());
+        let mut table = Some(HashMap::new());
         loop {
             if let Some(movement) = search(
                 Player::Player1,
                 &mut board2,
                 true,
-                &mut table1,
+                &mut table,
                 6,
                 &mut stats,
             ) {
@@ -289,9 +289,14 @@ mod test {
                 break;
             }
             board2.mark_kings();
-            if let Some(movement) =
-                search(Player::Player2, &mut board2, true, &mut None, 6, &mut stats)
-            {
+            if let Some(movement) = search(
+                Player::Player2,
+                &mut board2,
+                true,
+                &mut table,
+                6,
+                &mut stats,
+            ) {
                 board2.do_movement(&movement);
                 move_list_2.push(movement);
             } else {

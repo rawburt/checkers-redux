@@ -28,7 +28,7 @@ fn main() {
 
     let mut stats = Stats::new();
 
-    let mut table: Option<HashMap<Board, TTEntry>> = None;
+    let mut table: Option<HashMap<(Player, Board), TTEntry>> = None;
     if cli.transposition_table {
         table = Some(HashMap::new());
     }
