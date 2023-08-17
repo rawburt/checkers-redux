@@ -73,7 +73,7 @@ fn minimax(
     ctx: &MinimaxContext,
     board: &mut Board,
     player: Player,
-    table: &mut HashMap<Board, TTEntry>,
+    table: &mut HashMap<u128, TTEntry>,
     depth: u32,
     mut alpha: i32,
     mut beta: i32,
@@ -91,7 +91,7 @@ fn minimax(
     }
 
     if ctx.table {
-        if let Some(entry) = table.get(board) {
+        if let Some(entry) = table.get(&board.hash()) {
             if entry.depth >= depth {
                 match entry.flag {
                     Flag::Exact => {
@@ -163,7 +163,7 @@ fn minimax(
                 Flag::Exact
             };
             table.insert(
-                *board,
+                board.hash(),
                 TTEntry {
                     movement: m.clone(),
                     score: value,
@@ -185,7 +185,7 @@ pub fn get_movement(
     ctx: &MinimaxContext,
     board: &mut Board,
     player: Player,
-    table: &mut HashMap<Board, TTEntry>,
+    table: &mut HashMap<u128, TTEntry>,
 ) -> Option<Movement> {
     let movements = board.movements(player);
 

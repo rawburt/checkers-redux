@@ -63,8 +63,8 @@ fn game_loop(mut player1: Runner, mut player2: Runner, gameid: &Uuid) {
         Some(Player::Player2) => println!("game.{}.winner = player 2", &gameid),
     }
 
-    player1.display_stats("player1", &gameid);
-    player2.display_stats("player2", &gameid);
+    player1.display_stats("player1", gameid);
+    player2.display_stats("player2", gameid);
 }
 
 #[derive(Parser)]

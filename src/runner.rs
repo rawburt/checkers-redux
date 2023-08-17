@@ -18,7 +18,7 @@ enum RunnerKind {
 pub struct Runner {
     kind: RunnerKind,
     context: Option<MinimaxContext>,
-    table: Option<HashMap<Board, TTEntry>>,
+    table: Option<HashMap<u128, TTEntry>>,
     map: Option<MovementMap>,
     stats: Stats,
 }
@@ -34,7 +34,7 @@ impl Runner {
         }
     }
 
-    pub fn ai(context: MinimaxContext, table: HashMap<Board, TTEntry>) -> Self {
+    pub fn ai(context: MinimaxContext, table: HashMap<u128, TTEntry>) -> Self {
         Self {
             kind: RunnerKind::AI,
             context: Some(context),
@@ -56,10 +56,22 @@ impl Runner {
 
     pub fn display_stats(&self, player: &str, gameid: &Uuid) {
         println!("game.{}.{}.moves = {}", &gameid, player, self.stats.moves);
-        println!("game.{}.{}.explored = {}", &gameid, player, self.stats.explored);
-        println!("game.{}.{}.beta_cuts = {}", &gameid, player, self.stats.beta_cuts);
-        println!("game.{}.{}.tt_exact = {}", &gameid, player, self.stats.tt_exact);
-        println!("game.{}.{}.tt_cuts = {}", &gameid, player, self.stats.tt_cuts);
+        println!(
+            "game.{}.{}.explored = {}",
+            &gameid, player, self.stats.explored
+        );
+        println!(
+            "game.{}.{}.beta_cuts = {}",
+            &gameid, player, self.stats.beta_cuts
+        );
+        println!(
+            "game.{}.{}.tt_exact = {}",
+            &gameid, player, self.stats.tt_exact
+        );
+        println!(
+            "game.{}.{}.tt_cuts = {}",
+            &gameid, player, self.stats.tt_cuts
+        );
     }
 
     pub fn get_move(&mut self, board: &mut Board, player: Player) -> Option<Movement> {

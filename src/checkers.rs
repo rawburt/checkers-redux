@@ -1,4 +1,5 @@
 use clap::ValueEnum;
+use rand::{thread_rng, Rng};
 use std::fmt;
 
 #[derive(Debug, PartialEq, Clone, Copy, ValueEnum, Eq, Hash)]
@@ -41,6 +42,10 @@ impl Piece {
 
     pub fn player2_king() -> Self {
         Self::new(Player::Player2, true)
+    }
+
+    pub fn id(&self) -> usize {
+        ZobristHash::piece_id(*self)
     }
 
     fn movements(&self) -> &[i32] {
@@ -169,6 +174,48 @@ impl Movement {
     }
 }
 
+#[derive(Debug, PartialEq, Clone, Copy)]
+struct ZobristHash {
+    randoms: [[u128; 4]; 46],
+    hash: u128,
+}
+
+impl ZobristHash {
+    fn new() -> Self {
+        let mut randoms = [[0; 4]; 46];
+        for r in &mut randoms {
+            r[0] = thread_rng().gen();
+            r[1] = thread_rng().gen();
+            r[2] = thread_rng().gen();
+            r[3] = thread_rng().gen();
+        }
+        Self { randoms, hash: 0 }
+    }
+
+    fn piece_id(piece: Piece) -> usize {
+        match piece.player {
+            Player::Player1 => {
+                if piece.king {
+                    1
+                } else {
+                    0
+                }
+            }
+            Player::Player2 => {
+                if piece.king {
+                    3
+                } else {
+                    2
+                }
+            }
+        }
+    }
+
+    fn flip(&mut self, pos: usize, piece: usize) {
+        self.hash ^= self.randoms[pos][piece];
+    }
+}
+
 pub const VALID_SQUARES: [usize; 32] = [
     5, 6, 7, 8, 10, 11, 12, 13, 14, 15, 16, 17, 19, 20, 21, 22, 23, 24, 25, 26, 28, 29, 30, 31, 32,
     33, 34, 35, 37, 38, 39, 40,
@@ -179,7 +226,7 @@ const EMPTY_START: [usize; 8] = [19, 20, 21, 22, 23, 24, 25, 26];
 const PLAYER1_KINGS: [usize; 4] = [37, 38, 39, 40];
 const PLAYER2_KINGS: [usize; 4] = [5, 6, 7, 8];
 
-#[derive(Debug, PartialEq, Eq, Hash, Copy, Clone)]
+#[derive(Debug)]
 pub struct Board {
     // # https://3dkingdoms.com/checkers/bitboards.htm by Jonathan Kreuzer
     // #
@@ -196,30 +243,41 @@ pub struct Board {
     //      -- alternative board layout, similar approach as Jonathan Kreuzer above
     //
     squares: [Square; 46],
+    zobrist: ZobristHash,
 }
 
 impl Board {
     pub fn new() -> Self {
+        let mut zobrist = ZobristHash::new();
         let mut squares = [Square::Invalid; 46];
         for id in PLAYER1_START {
-            squares[id] = Square::Taken(Piece::player1_pawn());
+            let p = Piece::player1_pawn();
+            squares[id] = Square::Taken(p);
+            zobrist.flip(id, p.id())
         }
         for id in EMPTY_START {
             squares[id] = Square::Empty;
         }
         for id in PLAYER2_START {
-            squares[id] = Square::Taken(Piece::player2_pawn());
+            let p = Piece::player2_pawn();
+            squares[id] = Square::Taken(p);
+            zobrist.flip(id, p.id())
         }
-        Self { squares }
+        Self { squares, zobrist }
+    }
+
+    pub fn hash(&self) -> u128 {
+        self.zobrist.hash
     }
 
     #[allow(dead_code)]
     pub fn empty() -> Self {
+        let zobrist = ZobristHash::new();
         let mut squares = [Square::Invalid; 46];
         for id in VALID_SQUARES {
             squares[id] = Square::Empty;
         }
-        Self { squares }
+        Self { squares, zobrist }
     }
 
     pub fn get(&self, id: usize) -> Square {
@@ -319,9 +377,15 @@ impl Board {
 
     pub fn do_movement(&mut self, movement: &Movement) {
         self.squares[movement.to.id] = self.squares[movement.from.id];
+        self.zobrist
+            .flip(movement.to.id, movement.from.piece.unwrap().id());
         self.squares[movement.from.id] = Square::Empty;
+        self.zobrist
+            .flip(movement.from.id, movement.from.piece.unwrap().id());
         if let Some(jumped_state) = &movement.jumped {
             self.squares[jumped_state.id] = Square::Empty;
+            self.zobrist
+                .flip(jumped_state.id, jumped_state.piece.unwrap().id());
             if let Some(next_movement) = &movement.next {
                 self.do_movement(next_movement);
             }
@@ -333,9 +397,15 @@ impl Board {
             self.undo_movement(next_movement);
         }
         self.squares[movement.from.id] = self.squares[movement.to.id];
+        self.zobrist
+            .flip(movement.from.id, movement.from.piece.unwrap().id());
         self.squares[movement.to.id] = Square::Empty;
+        self.zobrist
+            .flip(movement.to.id, movement.from.piece.unwrap().id());
         if let Some(jumped_state) = &movement.jumped {
             self.squares[jumped_state.id] = Square::Taken(jumped_state.piece.unwrap());
+            self.zobrist
+                .flip(jumped_state.id, jumped_state.piece.unwrap().id());
         }
     }
 
@@ -446,6 +516,7 @@ mod test {
     fn test_simple_movements() {
         let board_new = Board::new();
         let mut board = Board::new();
+        let hash = board.hash();
         let movement = Movement::simple(
             SquareState::piece(15, Piece::player1_pawn()),
             SquareState::empty(19),
@@ -455,14 +526,16 @@ mod test {
             .iter()
             .any(|m| *m == movement));
         board.do_movement(&movement);
-        assert_ne!(board_new, board);
+        assert_ne!(board_new.squares, board.squares);
         board.undo_movement(&movement);
-        assert_eq!(board_new, board);
+        assert_eq!(board_new.squares, board.squares);
+        assert_eq!(hash, board.hash());
     }
 
     #[test]
     fn test_do_movement_jump() {
         let mut board = Board::new();
+        let hash = board.hash();
         let m1 = Movement::simple(
             SquareState::piece(15, Piece::player1_pawn()),
             SquareState::empty(20),
@@ -492,11 +565,13 @@ mod test {
         board.undo_movement(&m2);
         board.undo_movement(&m1);
         assert_eq!(board.squares, Board::new().squares);
+        assert_eq!(hash, board.hash());
     }
 
     #[test]
     fn test_do_movement_multi_jump() {
         let mut board = Board::new();
+        let hash = board.hash();
         let m1 = Movement::simple(
             SquareState::piece(15, Piece::player1_pawn()),
             SquareState::empty(20),
@@ -569,11 +644,13 @@ mod test {
         board.undo_movement(&m2);
         board.undo_movement(&m1);
         assert_eq!(board.squares, Board::new().squares);
+        assert_eq!(hash, board.hash());
     }
 
     #[test]
     fn test_king_circle_jump() {
         let mut board = Board::empty();
+        let hash = board.hash();
         board.set(11, Square::Taken(Piece::player1_king()));
         board.set(16, Square::Taken(Piece::player2_pawn()));
         board.set(25, Square::Taken(Piece::player2_pawn()));
@@ -611,6 +688,7 @@ mod test {
         assert_eq!(board.get(25), Square::Taken(Piece::player2_pawn()));
         assert_eq!(board.get(24), Square::Taken(Piece::player2_pawn()));
         assert_eq!(board.get(15), Square::Taken(Piece::player2_pawn()));
+        assert_eq!(hash, board.hash());
     }
 
     #[test]
