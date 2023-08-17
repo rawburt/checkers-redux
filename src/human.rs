@@ -63,13 +63,31 @@ impl Default for MovementMap {
     }
 }
 
-fn parse_jump(board: &Board, map: &MovementMap, steps: &[&str], idx: usize) -> Option<Movement> {
+fn parse_jump(
+    board: &Board,
+    map: &MovementMap,
+    steps: &[&str],
+    idx: usize,
+    moving: Option<&SquareState>,
+) -> Option<Movement> {
     if steps.len() <= idx + 2 {
         return None;
     }
     let start = map.get(steps[idx])?;
     let jumped = map.get(steps[idx + 1])?;
     let end = map.get(steps[idx + 2])?;
+
+    // nested jump from a multi-jump
+    if let Some(start) = moving {
+        if let Square::Taken(jumped_piece) = board.get(*jumped) {
+            let square_start = SquareState::piece(start.id, start.piece.unwrap().clone());
+            let square_jumped = SquareState::piece(*jumped, jumped_piece);
+            let square_end = SquareState::empty(*end);
+            return Some(Movement::jump(square_start, square_end, square_jumped));
+        }
+    }
+
+    // normal jump or start of multi-jump
     if let Square::Taken(start_piece) = board.get(*start) {
         if let Square::Taken(jumped_piece) = board.get(*jumped) {
             let square_start = SquareState::piece(*start, start_piece);
@@ -87,6 +105,7 @@ fn parse_multi_jump(
     steps: &Vec<&str>,
     idx: usize,
     parent: &mut Movement,
+    moving: SquareState,
 ) {
     if steps.len() <= idx {
         return;
@@ -94,10 +113,10 @@ fn parse_multi_jump(
     if steps[idx] != "J:" {
         panic!("expected jump 1");
     }
-    match parse_jump(board, map, steps, idx + 1) {
+    match parse_jump(board, map, steps, idx + 1, Some(&moving)) {
         None => panic!("expected jump 2"),
         Some(mut m) => {
-            parse_multi_jump(board, map, steps, idx + 4, &mut m);
+            parse_multi_jump(board, map, steps, idx + 4, &mut m, moving);
             parent.set_next(&m);
         }
     }
@@ -121,10 +140,11 @@ pub fn parse_input(line: &mut str, board: &Board, map: &MovementMap) -> Option<M
             }
             None
         }
-        "J:" => parse_jump(board, map, &steps, 1),
+        "J:" => parse_jump(board, map, &steps, 1, None),
         "M:" => {
-            let mut jump = parse_jump(board, map, &steps, 2)?;
-            parse_multi_jump(board, map, &steps, 5, &mut jump);
+            let mut jump = parse_jump(board, map, &steps, 2, None)?;
+            let moving = jump.from().clone();
+            parse_multi_jump(board, map, &steps, 5, &mut jump, moving);
             Some(jump)
         }
         _ => None,
@@ -135,4 +155,23 @@ pub fn get_user_input(board: &Board, map: &MovementMap) -> Option<Movement> {
     let mut line = String::new();
     std::io::stdin().read_line(&mut line).unwrap();
     parse_input(&mut line, board, map)
+}
+
+#[cfg(test)]
+mod test {
+    use crate::checkers::Piece;
+
+    use super::*;
+
+    #[test]
+    fn test_parse_multi_jump() {
+        let mut board = Board::empty();
+        board.set(10, Square::Taken(Piece::player1_pawn()));
+        board.set(15, Square::Taken(Piece::player2_pawn()));
+        board.set(25, Square::Taken(Piece::player2_pawn()));
+        let map = MovementMap::new();
+        let mut input = "M: J: B7 C6 D5 J: D5 E4 F3".to_string();
+        let movement = parse_input(&mut input, &board, &map);
+        assert!(movement.is_some());
+    }
 }

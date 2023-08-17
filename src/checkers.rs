@@ -107,8 +107,8 @@ impl fmt::Display for Square {
 
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub struct SquareState {
-    id: usize,
-    piece: Option<Piece>,
+    pub id: usize,
+    pub piece: Option<Piece>,
 }
 
 impl SquareState {
@@ -171,6 +171,10 @@ impl Movement {
 
     pub fn is_jump(&self) -> bool {
         self.jumped.is_some()
+    }
+
+    pub fn from(&self) -> SquareState {
+        self.from
     }
 }
 
