@@ -1,12 +1,15 @@
 use clap::Parser;
 use rand::prelude::SliceRandom;
-use std::collections::HashMap;
+use std::{collections::HashMap, hash::Hash};
 
 mod ai;
 mod checkers;
+mod minimax;
 
-use ai::{search, Stats, TTEntry};
+use ai::{search, Stats};
 use checkers::{Board, Movement, Player, Square, SquareState};
+
+use crate::minimax::{get_movement, TTEntry};
 
 pub struct MovementMap {
     pub map: HashMap<String, usize>,
@@ -156,81 +159,81 @@ struct Cli {
 }
 
 fn main() {
-    let cli = Cli::parse();
+    let mut cli = Cli::parse();
 
     let mut player1 = 0;
     let mut player2 = 0;
 
     let mut stats = Stats::new();
 
-    let mut table: Option<HashMap<(Player, Board), TTEntry>> = None;
-    if cli.transposition_table {
-        table = Some(HashMap::new());
-    }
+    // let mut table: Option<HashMap<(Player, Board), TTEntry>> = None;
+    // if cli.transposition_table {
+    //     table = Some(HashMap::new());
+    // }
 
     if cli.play {
-        let map = MovementMap::new();
-        let mut board = Board::new();
-        let loser;
-        loop {
-            // PLAYER 1 human
-            let movements = board.movements(Player::Player1);
-            if movements.is_empty() {
-                loser = Player::Player1;
-                break;
-            }
-            println!("{}", &board);
-            loop {
-                let movement = get_user_input(&board, &map);
-                // dbg!(&movement);
-                if let Some(movement) = movement {
-                    // dbg!(&movement);
-                    // dbg!(&movements);
-                    if movements.iter().any(|m| *m == movement) {
-                        board.do_movement(&movement);
-                        break;
-                    }
-                }
-            }
-            stats.moves += 1;
+        // let map = MovementMap::new();
+        // let mut board = Board::new();
+        // let loser;
+        // loop {
+        //     // PLAYER 1 human
+        //     let movements = board.movements(Player::Player1);
+        //     if movements.is_empty() {
+        //         loser = Player::Player1;
+        //         break;
+        //     }
+        //     println!("{}", &board);
+        //     loop {
+        //         let movement = get_user_input(&board, &map);
+        //         // dbg!(&movement);
+        //         if let Some(movement) = movement {
+        //             // dbg!(&movement);
+        //             // dbg!(&movements);
+        //             if movements.iter().any(|m| *m == movement) {
+        //                 board.do_movement(&movement);
+        //                 break;
+        //             }
+        //         }
+        //     }
+        //     stats.moves += 1;
 
-            // PLAYER 2
-            if let Some(movement) = search(
-                Player::Player2,
-                &mut board,
-                cli.alpha_beta,
-                &mut table,
-                cli.depth,
-                &mut stats,
-            ) {
-                board.do_movement(&movement);
-                stats.moves += 1;
-            } else {
-                loser = Player::Player1;
-                break;
-            }
-            board.mark_kings();
-        }
-        match loser {
-            Player::Player1 => player2 += 1,
-            Player::Player2 => player1 += 1,
-        };
-        dbg!(&stats);
-        println!("{}", board);
+        //     // PLAYER 2
+        //     if let Some(movement) = search(
+        //         Player::Player2,
+        //         &mut board,
+        //         cli.alpha_beta,
+        //         &mut table,
+        //         cli.depth,
+        //         &mut stats,
+        //     ) {
+        //         board.do_movement(&movement);
+        //         stats.moves += 1;
+        //     } else {
+        //         loser = Player::Player1;
+        //         break;
+        //     }
+        //     board.mark_kings();
+        // }
+        // match loser {
+        //     Player::Player1 => player2 += 1,
+        //     Player::Player2 => player1 += 1,
+        // };
+        // dbg!(&stats);
+        // println!("{}", board);
     } else {
         for _ in 0..cli.games {
             let mut board = Board::new();
             let loser;
+            let mut ttable: Option<HashMap<Board, TTEntry>> = None;
+            if cli.transposition_table {
+                ttable = Some(HashMap::new());
+                cli.alpha_beta = true;
+            }
             loop {
                 // PLAYER 1
-                if let Some(movement) = search(
-                    Player::Player1,
-                    &mut board,
-                    cli.alpha_beta,
-                    &mut table,
-                    cli.depth,
-                    &mut stats,
-                ) {
+                if let Some(movement) =
+                    get_movement(&mut board, Player::Player1, &mut ttable, cli.alpha_beta, 6)
+                {
                     board.do_movement(&movement);
                     stats.moves += 1;
                 } else {
@@ -238,6 +241,22 @@ fn main() {
                     break;
                 }
                 board.mark_kings();
+
+                // if let Some(movement) = search(
+                //     Player::Player1,
+                //     &mut board,
+                //     cli.alpha_beta,
+                //     &mut table,
+                //     cli.depth,
+                //     &mut stats,
+                // ) {
+                //     board.do_movement(&movement);
+                //     stats.moves += 1;
+                // } else {
+                //     loser = Player::Player1;
+                //     break;
+                // }
+                // board.mark_kings();
 
                 // PLAYER 2
                 let movements = board.movements(Player::Player2);

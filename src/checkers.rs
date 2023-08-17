@@ -163,6 +163,10 @@ impl Movement {
     pub fn set_next(&mut self, movement: &Movement) {
         self.next = Some(Box::new(movement.clone()));
     }
+
+    pub fn is_jump(&self) -> bool {
+        self.jumped.is_some()
+    }
 }
 
 pub const VALID_SQUARES: [usize; 32] = [
@@ -351,11 +355,13 @@ impl Board {
         (p1, p2)
     }
 
-    pub fn mark_kings(&mut self) {
+    pub fn mark_kings(&mut self) -> u32 {
+        let mut kings = 0;
         for id in PLAYER1_KINGS {
             if let Square::Taken(piece) = self.squares[id] {
                 if piece.player == Player::Player1 && !piece.king {
                     self.squares[id] = Square::Taken(Piece::player1_king());
+                    kings += 1;
                 }
             }
         }
@@ -363,9 +369,11 @@ impl Board {
             if let Square::Taken(piece) = self.squares[id] {
                 if piece.player == Player::Player2 && !piece.king {
                     self.squares[id] = Square::Taken(Piece::player2_king());
+                    kings += 1;
                 }
             }
         }
+        kings
     }
 }
 
