@@ -57,10 +57,17 @@ fn game_loop(mut player1: Runner, mut player2: Runner) {
     }
 
     match winner {
-        None => println!("winner: draw"),
-        Some(Player::Player1) => println!("winner: player 1"),
-        Some(Player::Player2) => println!("winner: player 2"),
+        None => println!("winner = draw"),
+        Some(Player::Player1) => println!("winner = player 1"),
+        Some(Player::Player2) => println!("winner = player 2"),
     }
+
+    println!();
+    println!("stats = player 1");
+    player1.display_stats();
+    println!();
+    println!("stats = player 2");
+    player2.display_stats();
 }
 
 #[derive(Parser)]
@@ -85,6 +92,11 @@ fn main() {
         time: None,
     };
 
+    println!("ai.table = {}", ctx.table);
+    println!("ai.depth = {}", ctx.depth);
+    println!("ai.alpha_beta = {}", ctx.alpha_beta);
+    println!();
+
     if cli.play {
         let player1 = Runner::human(MovementMap::new());
         let player2 = Runner::ai(ctx, HashMap::new());
@@ -103,7 +115,7 @@ mod test {
     use crate::{
         checkers::{Piece, Square},
         human::parse_input,
-        minimax::get_movement,
+        minimax::{get_movement, Stats},
     };
 
     use super::*;
@@ -144,7 +156,13 @@ mod test {
 
         board.do_movement(&movement);
 
-        let ai_movement = get_movement(&ctx, &mut board, Player::Player2, &mut table);
+        let ai_movement = get_movement(
+            &mut Stats::new(),
+            &ctx,
+            &mut board,
+            Player::Player2,
+            &mut table,
+        );
 
         assert!(ai_movement.is_some());
 
