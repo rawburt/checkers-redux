@@ -64,7 +64,6 @@ pub struct MinimaxContext {
     pub table: bool,
     pub depth: u32,
     pub alpha_beta: bool,
-    pub time: Option<u32>,
 }
 
 #[allow(clippy::too_many_arguments)]

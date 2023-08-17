@@ -88,7 +88,6 @@ fn main() {
         table: cli.transposition_table,
         depth: cli.depth,
         alpha_beta: cli.alpha_beta,
-        time: None,
     };
 
     println!("game.{}.ai.table = {}", &gameid, ctx.table);
@@ -124,7 +123,6 @@ mod test {
             table: false,
             depth: 6,
             alpha_beta: true,
-            time: None,
         };
         let mut table = HashMap::new();
 
