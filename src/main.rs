@@ -1,5 +1,6 @@
 use rand::prelude::SliceRandom;
 use clap::Parser;
+
 mod checkers;
 mod ai;
 
