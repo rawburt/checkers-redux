@@ -1,15 +1,13 @@
 use clap::Parser;
 use rand::prelude::SliceRandom;
-use std::{collections::HashMap, hash::Hash};
+use std::collections::HashMap;
 
-mod ai;
 mod checkers;
 mod minimax;
 
-use ai::{search, Stats};
 use checkers::{Board, Movement, Player, Square, SquareState};
 
-use crate::minimax::{get_movement, TTEntry};
+use crate::minimax::{get_movement, MinimaxContext, TTEntry};
 
 pub struct MovementMap {
     pub map: HashMap<String, usize>,
@@ -66,6 +64,12 @@ impl MovementMap {
     }
 }
 
+impl Default for MovementMap {
+    fn default() -> Self {
+        MovementMap::new()
+    }
+}
+
 pub fn parse_jump(
     board: &Board,
     map: &MovementMap,
@@ -115,7 +119,6 @@ fn get_user_input(board: &Board, map: &MovementMap) -> Option<Movement> {
     let mut line = String::new();
     std::io::stdin().read_line(&mut line).unwrap();
     let steps: Vec<&str> = line.trim().split(' ').collect();
-    // dbg!(&steps);
 
     if steps.len() < 3 {
         return None;
@@ -125,22 +128,20 @@ fn get_user_input(board: &Board, map: &MovementMap) -> Option<Movement> {
         "S:" => {
             let start = map.get(steps[1])?;
             let end = map.get(steps[2])?;
-            // dbg!(start);
-            // dbg!(end);
             if let Square::Taken(piece) = board.get(*start) {
                 let square_start = SquareState::piece(*start, piece);
                 let square_end = SquareState::empty(*end);
                 return Some(Movement::simple(square_start, square_end));
             }
-            return None;
+            None
         }
-        "J:" => return parse_jump(board, map, &steps, 1),
+        "J:" => parse_jump(board, map, &steps, 1),
         "M:" => {
             let mut jump = parse_jump(board, map, &steps, 2)?;
             parse_multi_jump(board, map, &steps, 5, &mut jump);
             Some(jump)
         }
-        _ => return None,
+        _ => None,
     }
 }
 
@@ -152,136 +153,153 @@ struct Cli {
     transposition_table: bool,
     #[arg(short, long)]
     play: bool,
-    #[arg(short, long, default_value_t = 1)]
-    games: u32,
     #[arg(short, long, default_value_t = 6)]
-    depth: u8,
+    depth: u32,
 }
 
-fn main() {
-    let mut cli = Cli::parse();
+enum RunnerKind {
+    Random,
+    AI,
+    Human,
+}
 
-    let mut player1 = 0;
-    let mut player2 = 0;
+struct Runner {
+    kind: RunnerKind,
+    context: Option<MinimaxContext>,
+    table: Option<HashMap<Board, TTEntry>>,
+    map: Option<MovementMap>,
+}
 
-    let mut stats = Stats::new();
-
-    // let mut table: Option<HashMap<(Player, Board), TTEntry>> = None;
-    // if cli.transposition_table {
-    //     table = Some(HashMap::new());
-    // }
-
-    if cli.play {
-        // let map = MovementMap::new();
-        // let mut board = Board::new();
-        // let loser;
-        // loop {
-        //     // PLAYER 1 human
-        //     let movements = board.movements(Player::Player1);
-        //     if movements.is_empty() {
-        //         loser = Player::Player1;
-        //         break;
-        //     }
-        //     println!("{}", &board);
-        //     loop {
-        //         let movement = get_user_input(&board, &map);
-        //         // dbg!(&movement);
-        //         if let Some(movement) = movement {
-        //             // dbg!(&movement);
-        //             // dbg!(&movements);
-        //             if movements.iter().any(|m| *m == movement) {
-        //                 board.do_movement(&movement);
-        //                 break;
-        //             }
-        //         }
-        //     }
-        //     stats.moves += 1;
-
-        //     // PLAYER 2
-        //     if let Some(movement) = search(
-        //         Player::Player2,
-        //         &mut board,
-        //         cli.alpha_beta,
-        //         &mut table,
-        //         cli.depth,
-        //         &mut stats,
-        //     ) {
-        //         board.do_movement(&movement);
-        //         stats.moves += 1;
-        //     } else {
-        //         loser = Player::Player1;
-        //         break;
-        //     }
-        //     board.mark_kings();
-        // }
-        // match loser {
-        //     Player::Player1 => player2 += 1,
-        //     Player::Player2 => player1 += 1,
-        // };
-        // dbg!(&stats);
-        // println!("{}", board);
-    } else {
-        for _ in 0..cli.games {
-            let mut board = Board::new();
-            let loser;
-            let mut ttable: Option<HashMap<Board, TTEntry>> = None;
-            if cli.transposition_table {
-                ttable = Some(HashMap::new());
-                cli.alpha_beta = true;
-            }
-            loop {
-                // PLAYER 1
-                if let Some(movement) =
-                    get_movement(&mut board, Player::Player1, &mut ttable, cli.alpha_beta, 6)
-                {
-                    board.do_movement(&movement);
-                    stats.moves += 1;
-                } else {
-                    loser = Player::Player1;
-                    break;
-                }
-                board.mark_kings();
-
-                // if let Some(movement) = search(
-                //     Player::Player1,
-                //     &mut board,
-                //     cli.alpha_beta,
-                //     &mut table,
-                //     cli.depth,
-                //     &mut stats,
-                // ) {
-                //     board.do_movement(&movement);
-                //     stats.moves += 1;
-                // } else {
-                //     loser = Player::Player1;
-                //     break;
-                // }
-                // board.mark_kings();
-
-                // PLAYER 2
-                let movements = board.movements(Player::Player2);
-                if movements.is_empty() {
-                    loser = Player::Player2;
-                    break;
-                }
-                if let Some(movement) = movements.choose(&mut rand::thread_rng()) {
-                    board.do_movement(movement);
-                    stats.moves += 1;
-                } else {
-                    panic!();
-                }
-                board.mark_kings();
-            }
-            match loser {
-                Player::Player1 => player2 += 1,
-                Player::Player2 => player1 += 1,
-            };
-            dbg!(&stats);
-            println!("{}", board);
-            stats.reset();
+impl Runner {
+    pub fn random() -> Self {
+        Self {
+            kind: RunnerKind::Random,
+            context: None,
+            table: None,
+            map: None,
         }
     }
 
-    dbg!(player1);
-    dbg!(player2);
+    pub fn ai(context: MinimaxContext, table: HashMap<Board, TTEntry>) -> Self {
+        Self {
+            kind: RunnerKind::AI,
+            context: Some(context),
+            table: Some(table),
+            map: None,
+        }
+    }
+
+    pub fn human(map: MovementMap) -> Self {
+        Self {
+            kind: RunnerKind::Human,
+            context: None,
+            table: None,
+            map: Some(map),
+        }
+    }
+
+    pub fn get_move(&mut self, board: &mut Board, player: Player) -> Option<Movement> {
+        match self.kind {
+            RunnerKind::Random => {
+                let movements = board.movements(player);
+                if movements.is_empty() {
+                    return None;
+                }
+                movements.choose(&mut rand::thread_rng()).cloned()
+            }
+            RunnerKind::AI => get_movement(
+                self.context.as_ref().unwrap(),
+                board,
+                player,
+                self.table.as_mut().unwrap(),
+            ),
+            RunnerKind::Human => {
+                let movements = board.movements(Player::Player1);
+                if movements.is_empty() {
+                    return None;
+                }
+                println!("{}", &board);
+                loop {
+                    let movement = get_user_input(board, self.map.as_ref().unwrap());
+                    if let Some(movement) = movement {
+                        if movements.iter().any(|m| *m == movement) {
+                            return Some(movement);
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+fn game_loop(mut player1: Runner, mut player2: Runner) {
+    let mut board = Board::new();
+    let mut draw = 0;
+    let mut winner: Option<Player> = None;
+    loop {
+        // PLAYER 1
+        if let Some(movement) = player1.get_move(&mut board, Player::Player1) {
+            board.do_movement(&movement);
+            if movement.is_jump() {
+                draw = 0;
+            } else {
+                draw += 1;
+            }
+            if board.mark_kings() > 0 {
+                draw = 0;
+            }
+        } else {
+            winner = Some(Player::Player2);
+            break;
+        }
+
+        // PLAYER 2
+        if let Some(movement) = player2.get_move(&mut board, Player::Player2) {
+            board.do_movement(&movement);
+            if movement.is_jump() {
+                draw = 0;
+            } else {
+                draw += 1;
+            }
+            if board.mark_kings() > 0 {
+                draw = 0;
+            }
+        } else {
+            winner = Some(Player::Player1);
+            break;
+        }
+
+        if draw >= 40 {
+            break;
+        }
+    }
+
+    match winner {
+        None => println!("draw"),
+        Some(Player::Player1) => println!("player 1"),
+        Some(Player::Player2) => println!("player 2"),
+    }
+}
+
+fn main() {
+    let cli = Cli::parse();
+
+    let ctx = MinimaxContext {
+        table: cli.transposition_table,
+        depth: cli.depth,
+        alpha_beta: cli.alpha_beta,
+        time: None,
+    };
+
+    if cli.play {
+        let player1 = Runner::human(MovementMap::new());
+        let player2 = Runner::ai(ctx, HashMap::new());
+
+        game_loop(player1, player2);
+    } else {
+        let player1 = Runner::ai(ctx, HashMap::new());
+        let player2 = Runner::random();
+
+        game_loop(player1, player2);
+    }
 }

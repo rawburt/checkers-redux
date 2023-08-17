@@ -377,6 +377,12 @@ impl Board {
     }
 }
 
+impl Default for Board {
+    fn default() -> Self {
+        Board::new()
+    }
+}
+
 impl fmt::Display for Board {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         writeln!(f, "   ---------------------------------")?;

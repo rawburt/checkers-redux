@@ -40,11 +40,18 @@ struct MinimaxResult {
     movement: Option<Movement>,
 }
 
+pub struct MinimaxContext {
+    pub table: bool,
+    pub depth: u32,
+    pub alpha_beta: bool,
+    pub time: Option<u32>,
+}
+
 fn minimax(
+    ctx: &MinimaxContext,
     board: &mut Board,
     player: Player,
-    table: &mut Option<HashMap<Board, TTEntry>>,
-    alpha_beta: bool,
+    table: &mut HashMap<Board, TTEntry>,
     depth: u32,
     mut alpha: i32,
     mut beta: i32,
@@ -60,7 +67,7 @@ fn minimax(
         return result;
     }
 
-    if let Some(table) = table {
+    if ctx.table {
         if let Some(entry) = table.get(board) {
             if entry.depth >= depth {
                 match entry.flag {
@@ -95,12 +102,12 @@ fn minimax(
 
     for m in movements {
         board.do_movement(&m);
-        let score = -minimax(board, player.other(), table, alpha_beta, depth - 1, -beta, -alpha).score;
+        let score = -minimax(ctx, board, player.other(), table, depth - 1, -beta, -alpha).score;
         board.undo_movement(&m);
         if value < score {
             value = score;
             best_move = Some(m);
-            if value >= beta && alpha_beta {
+            if value >= beta && ctx.alpha_beta {
                 break;
             }
         }
@@ -109,7 +116,7 @@ fn minimax(
         }
     }
 
-    if let Some(table) = table {
+    if ctx.table {
         if let Some(m) = &best_move {
             let flag = if value <= alpha {
                 Flag::Upperbound
@@ -137,19 +144,18 @@ fn minimax(
 }
 
 pub fn get_movement(
+    ctx: &MinimaxContext,
     board: &mut Board,
     player: Player,
-    table: &mut Option<HashMap<Board, TTEntry>>,
-    alpha_beta: bool,
-    depth: u32,
+    table: &mut HashMap<Board, TTEntry>,
 ) -> Option<Movement> {
     let movements = board.movements(player);
     if movements.is_empty() {
         return None;
     }
     let mut best_movement: Option<Movement> = None;
-    for d in 1..=depth {
-        let result = minimax(board, player, table, alpha_beta, d, i32::MIN + 1, i32::MAX - 1);
+    for d in 1..=ctx.depth {
+        let result = minimax(ctx, board, player, table, d, i32::MIN + 1, i32::MAX - 1);
         if let Some(m) = result.movement {
             best_movement = Some(m);
         }
