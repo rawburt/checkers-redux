@@ -101,20 +101,20 @@ impl fmt::Display for Square {
 }
 
 #[derive(Debug, PartialEq, Clone, Copy)]
-struct SquareState {
+pub struct SquareState {
     id: usize,
     piece: Option<Piece>,
 }
 
 impl SquareState {
-    fn piece(id: usize, piece: Piece) -> Self {
+    pub fn piece(id: usize, piece: Piece) -> Self {
         Self {
             id,
             piece: Some(piece),
         }
     }
 
-    fn empty(id: usize) -> Self {
+    pub fn empty(id: usize) -> Self {
         Self { id, piece: None }
     }
 }
@@ -128,7 +128,7 @@ pub struct Movement {
 }
 
 impl Movement {
-    fn simple(from: SquareState, to: SquareState) -> Self {
+    pub fn simple(from: SquareState, to: SquareState) -> Self {
         Self {
             from,
             to,
@@ -137,7 +137,7 @@ impl Movement {
         }
     }
 
-    fn jump(from: SquareState, to: SquareState, jumped: SquareState) -> Self {
+    pub fn jump(from: SquareState, to: SquareState, jumped: SquareState) -> Self {
         Self {
             from,
             to,
@@ -146,7 +146,7 @@ impl Movement {
         }
     }
 
-    fn multi_jump(
+    pub fn multi_jump(
         from: SquareState,
         to: SquareState,
         jumped: SquareState,
@@ -158,6 +158,10 @@ impl Movement {
             jumped: Some(jumped),
             next: Some(next),
         }
+    }
+
+    pub fn set_next(&mut self, movement: &Movement) {
+        self.next = Some(Box::new(movement.clone()));
     }
 }
 
