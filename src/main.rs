@@ -198,7 +198,7 @@ fn main() {
         depth: cli.p2_depth,
         alpha_beta: cli.p2_alpha_beta || cli.p2_transposition_table,
         quiescence: cli.p2_quiescence,
-        heuristic: cli.p1_eval.to_fn(),
+        heuristic: cli.p2_eval.to_fn(),
     };
 
     if cli.play {

@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use crate::checkers::{Board, Movement, Player, Square, VALID_SQUARES};
 
-// const CENTER: [usize; 6] = [15, 16, 20, 21, 24, 25];
+const CENTER: [usize; 6] = [15, 16, 20, 21, 24, 25];
 const BACKP1: [usize; 4] = [5, 6, 7, 8];
 const BACKP2: [usize; 4] = [37, 38, 39, 40];
 
@@ -28,52 +28,70 @@ pub fn evaluation1(board: &Board, player: Player) -> i32 {
 }
 
 pub fn evaluation2(board: &Board, player: Player) -> i32 {
-    let mut score = 0;
+    let mut me = 0;
+    let mut you = 0;
+    let mut tempo = 0;
+    let mut defense = 0;
+    let mut pawns = 0;
+    let mut kings = 0;
+    let mut total = 0;
+    let mut kcent = 0;
+    let mut cramp = 0;
     for id in VALID_SQUARES {
         if let Square::Taken(piece) = board.get(id) {
+            total += 1;
             if piece.get_player() == player {
+                me += 1;
                 if piece.is_king() {
-                    score += 10;
+                    kings += 1;
+                    if CENTER.contains(&id) {
+                        kcent += 1;
+                    }
                 } else {
                     match player {
                         Player::Player1 => {
                             if BACKP1.contains(&id) {
-                                score += 1;
+                                defense += 1;
                             }
                         }
                         Player::Player2 => {
                             if BACKP2.contains(&id) {
-                                score += 1;
+                                defense += 1;
                             }
                         }
                     };
                     if player == Player::Player1 && id >= 28 {
-                        score += 7;
+                        tempo += 1;
                     } else if player == Player::Player2 && id <= 17 {
-                        score += 7;
+                        tempo += 1;
                     } else {
-                        score += 5;
+                        pawns += 1;
                     }
                 }
             } else if piece.is_king() {
-                score -= 10;
+                you += 1;
+                kings -= 1;
+                if CENTER.contains(&id) {
+                    kcent -= 1;
+                }
             } else {
+                you += 1;
                 if player == Player::Player1 && id <= 17 {
-                    score -= 7;
+                    tempo -= 1;
                 } else if player == Player::Player2 && id >= 28 {
-                    score -= 7;
+                    tempo -= 1;
                 } else {
-                    score -= 5;
+                    pawns -= 1;
                 }
                 match player.other() {
                     Player::Player1 => {
                         if BACKP1.contains(&id) {
-                            score -= 1;
+                            defense -= 1;
                         }
                     }
                     Player::Player2 => {
                         if BACKP2.contains(&id) {
-                            score -= 1;
+                            defense -= 1;
                         }
                     }
                 };
@@ -81,7 +99,47 @@ pub fn evaluation2(board: &Board, player: Player) -> i32 {
         }
     }
 
-    score
+    if let Square::Taken(piece1) = board.get(23) {
+        if piece1.get_player() == Player::Player1 {
+            if let Square::Taken(piece2) = board.get(28) {
+                if piece1.get_player() != piece2.get_player() {
+                    if player == Player::Player1 {
+                        cramp += 1;
+                    } else {
+                        cramp -= 1;
+                    }
+                }
+            }
+        }
+    }
+
+    if let Square::Taken(piece1) = board.get(22) {
+        if piece1.get_player() == Player::Player2 {
+            if let Square::Taken(piece2) = board.get(17) {
+                if piece1.get_player() != piece2.get_player() {
+                    if player == Player::Player1 {
+                        cramp -= 1;
+                    } else {
+                        cramp += 1;
+                    }
+                }
+            }
+        }
+    }
+
+    let d = if total <= 12 { -10 } else { 15 };
+    let t = if total <= 16 { 10 } else { 40 };
+
+    // dbg!(pawns, kings, defense, tempo, me, you, kcent, cramp);
+
+    (105 * pawns)
+        + (125 * kings)
+        + (d * defense)
+        + (t * tempo)
+        + ((250 * (me - you)) / (me + you))
+        + (me - you)
+        + (30 * kcent)
+        + (10 * cramp)
 }
 
 pub struct Stats {
