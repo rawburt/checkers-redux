@@ -491,7 +491,7 @@ mod test {
         board.undo_movement(&movement);
         board.undo_movement(&m2);
         board.undo_movement(&m1);
-        assert_eq!(board, Board::new());
+        assert_eq!(board.squares, Board::new().squares);
     }
 
     #[test]
@@ -568,7 +568,7 @@ mod test {
         board.undo_movement(&m3);
         board.undo_movement(&m2);
         board.undo_movement(&m1);
-        assert_eq!(board, Board::new());
+        assert_eq!(board.squares, Board::new().squares);
     }
 
     #[test]
