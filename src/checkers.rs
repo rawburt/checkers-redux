@@ -119,7 +119,7 @@ impl SquareState {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct Movement {
     from: SquareState,
     to: SquareState,

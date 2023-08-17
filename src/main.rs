@@ -1,11 +1,11 @@
-use rand::prelude::SliceRandom;
 use clap::Parser;
+use rand::prelude::SliceRandom;
 
-mod checkers;
 mod ai;
+mod checkers;
 
-use checkers::{Player, Board};
 use ai::{search, Stats};
+use checkers::{Board, Player};
 
 #[derive(Parser)]
 struct Cli {
@@ -63,7 +63,7 @@ fn main() {
             Player::Player1 => player2 += 1,
             Player::Player2 => player1 += 1,
         };
-        dbg!("{}", &stats);
+        println!("{}", board);
         stats.reset();
     }
     dbg!(player1);

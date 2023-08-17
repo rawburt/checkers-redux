@@ -1,4 +1,4 @@
-use crate::checkers::{Player, Board, Square, Movement, VALID_SQUARES};
+use crate::checkers::{Board, Movement, Player, Square, VALID_SQUARES};
 
 const BACK_ROW: [usize; 8] = [5, 6, 7, 8, 37, 38, 39, 40];
 fn evaluate(player: Player, board: &Board) -> i32 {
@@ -152,13 +152,12 @@ impl Stats {
     }
 }
 
-
 #[cfg(test)]
 mod test {
     use super::*;
 
     #[test]
-    fn test_negamax_is_same_as_minimax() {
+    fn test_negamax_is_same_as_minimax_is_same_as_alphabeta() {
         let mut board1 = Board::new();
         let mut move_list_1 = Vec::new();
         let mut stats = Stats::new();
@@ -196,6 +195,7 @@ mod test {
             } else {
                 break;
             }
+            println!("{}", &board2);
             board2.mark_kings();
         }
 
