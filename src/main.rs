@@ -12,6 +12,8 @@ use human::MovementMap;
 
 use crate::minimax::MinimaxContext;
 
+const DRAW_LIMIT: u32 = 0;
+
 fn game_loop(mut player1: Runner, mut player2: Runner) {
     let mut board = Board::new();
     let mut draw = 0;
@@ -49,7 +51,7 @@ fn game_loop(mut player1: Runner, mut player2: Runner) {
             break;
         }
 
-        if draw >= 40 {
+        if draw >= DRAW_LIMIT {
             break;
         }
     }
