@@ -27,19 +27,19 @@ impl Piece {
         Self { player, king }
     }
 
-    fn player1_pawn() -> Self {
+    pub fn player1_pawn() -> Self {
         Self::new(Player::Player1, false)
     }
 
-    fn player1_king() -> Self {
+    pub fn player1_king() -> Self {
         Self::new(Player::Player1, true)
     }
 
-    fn player2_pawn() -> Self {
+    pub fn player2_pawn() -> Self {
         Self::new(Player::Player2, false)
     }
 
-    fn player2_king() -> Self {
+    pub fn player2_king() -> Self {
         Self::new(Player::Player2, true)
     }
 
@@ -283,13 +283,13 @@ impl Board {
         piece: Piece,
         id: usize,
         start: usize,
-        visited: &mut Vec<usize>,
+        prev_jumped: &mut Vec<usize>,
     ) -> Vec<Movement> {
         let mut movements = Vec::new();
         for m in piece.movements() {
             let id_jumped = (id as i32 + m) as usize;
             let id_to = (id_jumped as i32 + m) as usize;
-            if visited.iter().any(|v| *v == id_to) {
+            if prev_jumped.iter().any(|j| *j == id_jumped) {
                 continue;
             }
             if let Square::Taken(jumped_piece) = self.squares[id_jumped] {
@@ -299,9 +299,9 @@ impl Board {
                     let from = SquareState::piece(id, piece);
                     let to = SquareState::empty(id_to);
                     let jumped = SquareState::piece(id_jumped, jumped_piece);
-                    visited.push(id_to);
-                    let multi_jumps = self.jump_moves_at(player, piece, id_to, start, visited);
-                    visited.pop();
+                    prev_jumped.push(id_jumped);
+                    let multi_jumps = self.jump_moves_at(player, piece, id_to, start, prev_jumped);
+                    prev_jumped.pop();
                     if multi_jumps.is_empty() {
                         let movement = Movement::jump(from, to, jumped);
                         movements.push(movement);
@@ -611,5 +611,27 @@ mod test {
         assert_eq!(board.get(25), Square::Taken(Piece::player2_pawn()));
         assert_eq!(board.get(24), Square::Taken(Piece::player2_pawn()));
         assert_eq!(board.get(15), Square::Taken(Piece::player2_pawn()));
+    }
+
+    #[test]
+    fn test_king_jump() {
+        let mut board = Board::empty();
+        board.set(11, Square::Taken(Piece::player2_king()));
+        board.set(16, Square::Taken(Piece::player1_pawn()));
+        let jumps = board.jump_moves(Player::Player2);
+        let movement = Movement::jump(
+            SquareState::piece(11, Piece::player2_king()),
+            SquareState::empty(21),
+            SquareState::piece(16, Piece::player1_pawn()),
+        );
+        assert!(jumps.iter().any(|m| *m == movement));
+        board.do_movement(&movement);
+        assert_eq!(board.get(11), Square::Empty);
+        assert_eq!(board.get(16), Square::Empty);
+        assert_eq!(board.get(21), Square::Taken(Piece::player2_king()));
+        board.undo_movement(&movement);
+        assert_eq!(board.get(11), Square::Taken(Piece::player2_king()));
+        assert_eq!(board.get(16), Square::Taken(Piece::player1_pawn()));
+        assert_eq!(board.get(21), Square::Empty);
     }
 }

@@ -75,6 +75,8 @@ impl Runner {
                     if let Some(movement) = movement {
                         if movements.iter().any(|m| *m == movement) {
                             return Some(movement);
+                        } else {
+                            dbg!(&movements);
                         }
                     }
                 }

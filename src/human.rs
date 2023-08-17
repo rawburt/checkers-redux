@@ -63,12 +63,7 @@ impl Default for MovementMap {
     }
 }
 
-pub fn parse_jump(
-    board: &Board,
-    map: &MovementMap,
-    steps: &[&str],
-    idx: usize,
-) -> Option<Movement> {
+fn parse_jump(board: &Board, map: &MovementMap, steps: &[&str], idx: usize) -> Option<Movement> {
     if steps.len() <= idx + 2 {
         return None;
     }
@@ -86,7 +81,7 @@ pub fn parse_jump(
     None
 }
 
-pub fn parse_multi_jump(
+fn parse_multi_jump(
     board: &Board,
     map: &MovementMap,
     steps: &Vec<&str>,
@@ -108,9 +103,7 @@ pub fn parse_multi_jump(
     }
 }
 
-pub fn get_user_input(board: &Board, map: &MovementMap) -> Option<Movement> {
-    let mut line = String::new();
-    std::io::stdin().read_line(&mut line).unwrap();
+pub fn parse_input(line: &mut str, board: &Board, map: &MovementMap) -> Option<Movement> {
     let steps: Vec<&str> = line.trim().split(' ').collect();
 
     if steps.len() < 3 {
@@ -136,4 +129,10 @@ pub fn get_user_input(board: &Board, map: &MovementMap) -> Option<Movement> {
         }
         _ => None,
     }
+}
+
+pub fn get_user_input(board: &Board, map: &MovementMap) -> Option<Movement> {
+    let mut line = String::new();
+    std::io::stdin().read_line(&mut line).unwrap();
+    parse_input(&mut line, board, map)
 }

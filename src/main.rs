@@ -12,7 +12,7 @@ use human::MovementMap;
 
 use crate::minimax::MinimaxContext;
 
-const DRAW_LIMIT: u32 = 0;
+const DRAW_LIMIT: u32 = 40;
 
 fn game_loop(mut player1: Runner, mut player2: Runner) {
     let mut board = Board::new();
@@ -95,5 +95,62 @@ fn main() {
         let player2 = Runner::random();
 
         game_loop(player1, player2);
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use crate::{
+        checkers::{Piece, Square},
+        human::parse_input,
+        minimax::get_movement,
+    };
+
+    use super::*;
+
+    #[test]
+    fn test_bugfix_1() {
+        let ctx = MinimaxContext {
+            table: false,
+            depth: 6,
+            alpha_beta: true,
+            time: None,
+        };
+        let mut table = HashMap::new();
+
+        let mut board = Board::empty();
+
+        board.set(28, Square::Taken(Piece::player1_pawn()));
+        board.set(8, Square::Taken(Piece::player1_pawn()));
+        board.set(29, Square::Taken(Piece::player1_king()));
+        board.set(24, Square::Taken(Piece::player1_king()));
+
+        board.set(12, Square::Taken(Piece::player2_pawn()));
+        board.set(26, Square::Taken(Piece::player2_pawn()));
+        board.set(39, Square::Taken(Piece::player2_pawn()));
+        board.set(40, Square::Taken(Piece::player2_pawn()));
+        board.set(11, Square::Taken(Piece::player2_king()));
+
+        let mut input = String::from("J: G8 F7 E6");
+        let map = MovementMap::new();
+        let movement = parse_input(&mut input, &board, &map);
+
+        assert!(movement.is_some());
+
+        let movement = movement.unwrap();
+        let movements = board.movements(Player::Player1);
+
+        assert!(movements.iter().any(|m| *m == movement));
+
+        board.do_movement(&movement);
+
+        let ai_movement = get_movement(&ctx, &mut board, Player::Player2, &mut table);
+
+        assert!(ai_movement.is_some());
+
+        let ai_movement = ai_movement.unwrap();
+        board.do_movement(&ai_movement);
+
+        assert_eq!(board.get(21), Square::Taken(Piece::player2_king()));
     }
 }
