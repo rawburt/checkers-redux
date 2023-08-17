@@ -1,6 +1,6 @@
 use clap::{Parser, ValueEnum};
 use rand::seq::SliceRandom;
-use std::{collections::HashMap, fmt};
+use std::fmt;
 
 #[derive(Debug, PartialEq, Clone, Copy, ValueEnum, Eq, Hash)]
 enum Player {
@@ -452,6 +452,26 @@ fn evaluate(player: Player, board: &Board) -> i32 {
 const MAX: i32 = i32::MAX - 1;
 const MIN: i32 = i32::MIN + 1;
 
+fn negamax(player: Player, board: &mut Board, depth: u8, mut alpha: i32, beta: i32) -> i32 {
+    if depth == 0 {
+        return evaluate(player, board);
+    }
+
+    let mut value = MIN;
+
+    for m in board.movements(player) {
+        board.do_movement(&m);
+        value = value.max(-negamax(player.other(), board, depth - 1, -beta, -alpha));
+        board.undo_movement(&m);
+        alpha = alpha.max(value);
+        if alpha >= beta {
+            break;
+        }
+    }
+
+    value
+}
+
 // "Artificial Intelligence: A Modern Approach, Third Edition" by Stuary Russell and Peter Norvig
 // -- 5.2.1 The minimax algorithm
 fn minimax(
@@ -488,114 +508,11 @@ fn minimax(
     }
 }
 
-// "Artificial Intelligence: A Modern Approach, Third Edition" by Stuary Russell and Peter Norvig
-//      -- 5.3 Alpha-Beta Pruning
-// "A REVIEW OF GAME-TREE PRUNING" by T.A. Marsland (2001)
-//      -- Transposition Table
-fn alphabeta(
-    player: Player,
-    board: &mut Board,
-    depth: u8,
-    mut alpha: i32,
-    mut beta: i32,
-    maximizing: bool,
-    table: &mut Option<Table>,
-    stats: &mut Stats,
-) -> i32 {
-    let alpha_orig = alpha;
-
-    if let Some(table) = table {
-        if let Some(entry) = table.get(board) {
-            stats.entry_hits += 1;
-            if entry.depth >= depth {
-                match entry.flag {
-                    Flag::Exact => {
-                        stats.table_used += 1;
-                        return entry.value;
-                    }
-                    Flag::Lowerbound => {
-                        alpha = alpha.max(entry.value);
-                    }
-                    Flag::Upperbound => {
-                        beta = beta.min(entry.value);
-                    }
-                };
-                if alpha >= beta {
-                    stats.table_used += 1;
-                    return entry.value;
-                }
-            }
-        }
-    }
-    if depth == 0 {
-        let maximizing_player = if maximizing { player } else { player.other() };
-        return evaluate(maximizing_player, board);
-    }
-    let mut value;
-    if maximizing {
-        value = MIN;
-        let movements = board.movements(player);
-        for m in movements {
-            stats.explored += 1;
-            board.do_movement(&m);
-            value = value.max(alphabeta(
-                player.other(),
-                board,
-                depth - 1,
-                alpha,
-                beta,
-                false,
-                table,
-                stats,
-            ));
-            board.undo_movement(&m);
-            if value >= beta {
-                break;
-            }
-            alpha = alpha.max(value);
-        }
-    } else {
-        value = MAX;
-        let movements = board.movements(player);
-        for m in movements {
-            stats.explored += 1;
-            board.do_movement(&m);
-            value = value.min(alphabeta(
-                player.other(),
-                board,
-                depth - 1,
-                alpha,
-                beta,
-                true,
-                table,
-                stats,
-            ));
-            board.undo_movement(&m);
-            if value <= alpha {
-                break;
-            }
-            beta = beta.min(value);
-        }
-    }
-    if let Some(table) = table {
-        let flag = if value <= alpha_orig {
-            Flag::Upperbound
-        } else if value >= beta {
-            Flag::Lowerbound
-        } else {
-            Flag::Exact
-        };
-        table.insert(board, value, flag, depth);
-    }
-    value
-}
-
-fn minimax_root(
+fn search(
     player: Player,
     board: &mut Board,
     alpha_beta: bool,
     depth: u8,
-    table: &mut Option<Table>,
     stats: &mut Stats,
 ) -> Option<Movement> {
     let movements = board.movements(player);
@@ -611,7 +528,7 @@ fn minimax_root(
         stats.explored += 1;
         board.do_movement(&m);
         let v = if alpha_beta {
-            alphabeta(player.other(), board, depth, MIN, MAX, false, table, stats)
+            -negamax(player.other(), board, depth, MIN, MAX)
         } else {
             minimax(player.other(), board, depth, false, stats)
         };
@@ -623,51 +540,6 @@ fn minimax_root(
     }
 
     movement
-}
-
-#[derive(Debug)]
-enum Flag {
-    Exact,
-    Lowerbound,
-    Upperbound,
-}
-
-#[derive(Debug)]
-struct Entry {
-    value: i32,
-    depth: u8,
-    flag: Flag,
-}
-
-#[derive(Debug)]
-struct Table {
-    entries: HashMap<Board, Entry>,
-}
-
-impl Table {
-    fn new(capacity: usize) -> Self {
-        Self {
-            entries: HashMap::with_capacity(capacity),
-        }
-    }
-
-    fn get(&self, board: &Board) -> Option<&Entry> {
-        self.entries.get(board)
-    }
-
-    fn insert(&mut self, board: &Board, value: i32, flag: Flag, depth: u8) {
-        if let Some(entry) = self.entries.get_mut(board) {
-            entry.value = value;
-            entry.flag = flag;
-            entry.depth = depth;
-        } else {
-            self.entries.insert(*board, Entry { value, flag, depth });
-        }
-    }
-
-    fn len(&self) -> usize {
-        self.entries.len()
-    }
 }
 
 #[derive(Debug)]
@@ -713,22 +585,16 @@ fn main() {
 
     let mut stats = Stats::new();
 
-    let mut table: Option<Table> = None;
-    if cli.transposition_table {
-        table = Some(Table::new((2_u32.pow(cli.depth as u32) * 1000) as usize));
-    }
-
     for _ in 0..cli.games {
         let mut board = Board::new();
         let loser;
         loop {
             // PLAYER 1
-            if let Some(movement) = minimax_root(
+            if let Some(movement) = search(
                 Player::Player1,
                 &mut board,
                 cli.alpha_beta,
                 cli.depth,
-                &mut table,
                 &mut stats,
             ) {
                 board.do_movement(&movement);
@@ -757,9 +623,6 @@ fn main() {
         };
         dbg!("{}", &stats);
         stats.reset();
-    }
-    if let Some(table) = table {
-        dbg!(table.len());
     }
     dbg!(player1);
     dbg!(player2);
@@ -941,30 +804,19 @@ mod test {
     }
 
     #[test]
-    fn test_negamax_is_same_as_alpha_beta_and_table() {
-        // Alpha-Beta and Transposition Table's are optimizations of Minimax. Therefore,
-        // using these optimizations should yield the exact same game sequences.
+    fn test_negamax_is_same_as_minimax() {
         let mut board1 = Board::new();
         let mut move_list_1 = Vec::new();
         let mut stats = Stats::new();
         loop {
-            if let Some(movement) =
-                minimax_root(Player::Player1, &mut board1, true, 6, &mut None, &mut stats)
-            {
+            if let Some(movement) = search(Player::Player1, &mut board1, true, 6, &mut stats) {
                 board1.do_movement(&movement);
                 move_list_1.push(movement);
             } else {
                 break;
             }
             board1.mark_kings();
-            if let Some(movement) = minimax_root(
-                Player::Player2,
-                &mut board1,
-                false,
-                6,
-                &mut None,
-                &mut stats,
-            ) {
+            if let Some(movement) = search(Player::Player2, &mut board1, false, 6, &mut stats) {
                 board1.do_movement(&movement);
                 move_list_1.push(movement);
             } else {
@@ -976,30 +828,15 @@ mod test {
         stats.reset();
         let mut board2 = Board::new();
         let mut move_list_2 = Vec::new();
-        let mut table = Some(Table::new(10_000));
         loop {
-            if let Some(movement) = minimax_root(
-                Player::Player1,
-                &mut board2,
-                false,
-                6,
-                &mut table,
-                &mut stats,
-            ) {
+            if let Some(movement) = search(Player::Player1, &mut board2, true, 6, &mut stats) {
                 board2.do_movement(&movement);
                 move_list_2.push(movement);
             } else {
                 break;
             }
             board2.mark_kings();
-            if let Some(movement) = minimax_root(
-                Player::Player2,
-                &mut board2,
-                true,
-                6,
-                &mut table,
-                &mut stats,
-            ) {
+            if let Some(movement) = search(Player::Player2, &mut board2, true, 6, &mut stats) {
                 board2.do_movement(&movement);
                 move_list_2.push(movement);
             } else {
