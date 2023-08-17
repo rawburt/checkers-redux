@@ -60,6 +60,7 @@ struct MinimaxResult {
     movement: Option<Movement>,
 }
 
+#[derive(Debug, Clone, Copy)]
 pub struct MinimaxContext {
     pub table: bool,
     pub depth: u32,

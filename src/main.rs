@@ -69,41 +69,58 @@ fn game_loop(mut player1: Runner, mut player2: Runner, gameid: &Uuid) {
 
 #[derive(Parser)]
 struct Cli {
+    /// Enable Alpha-Beta Pruning
     #[arg(short, long)]
     alpha_beta: bool,
+    /// Enable the use of a Transposition Table with Alpha-Beta Pruning
     #[arg(short, long)]
     transposition_table: bool,
+    /// Play against the AI
     #[arg(short, long)]
     play: bool,
+    /// AI search depth limit
     #[arg(short, long, default_value_t = 6)]
     depth: u32,
+    /// How many games to simulate
+    #[arg(short, long, default_value_t = 1)]
+    games: u32,
 }
 
 fn main() {
     let cli = Cli::parse();
 
-    let gameid = Uuid::new_v4();
-
     let ctx = MinimaxContext {
         table: cli.transposition_table,
         depth: cli.depth,
-        alpha_beta: cli.alpha_beta,
+        alpha_beta: cli.alpha_beta || cli.transposition_table,
     };
 
-    println!("game.{}.ai.table = {}", &gameid, ctx.table);
-    println!("game.{}.ai.depth = {}", &gameid, ctx.depth);
-    println!("game.{}.ai.alpha_beta = {}", &gameid, ctx.alpha_beta);
-
     if cli.play {
+        let mut table = HashMap::new();
+
+        let gameid = Uuid::new_v4();
+        println!("game.{}.ai.table = {}", &gameid, ctx.table);
+        println!("game.{}.ai.depth = {}", &gameid, ctx.depth);
+        println!("game.{}.ai.alpha_beta = {}", &gameid, ctx.alpha_beta);
+
         let player1 = Runner::human(MovementMap::new());
-        let player2 = Runner::ai(ctx, HashMap::new());
+        let player2 = Runner::ai(ctx, &mut table);
 
         game_loop(player1, player2, &gameid);
     } else {
-        let player1 = Runner::ai(ctx, HashMap::new());
-        let player2 = Runner::random();
+        let mut table = HashMap::new();
 
-        game_loop(player1, player2, &gameid);
+        for _ in 0..cli.games {
+            let gameid = Uuid::new_v4();
+            println!("game.{}.ai.table = {}", &gameid, ctx.table);
+            println!("game.{}.ai.depth = {}", &gameid, ctx.depth);
+            println!("game.{}.ai.alpha_beta = {}", &gameid, ctx.alpha_beta);
+
+            let player1 = Runner::ai(ctx, &mut table);
+            let player2 = Runner::random();
+
+            game_loop(player1, player2, &gameid);
+        }
     }
 }
 

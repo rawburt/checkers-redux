@@ -15,15 +15,15 @@ enum RunnerKind {
     Human,
 }
 
-pub struct Runner {
+pub struct Runner<'a> {
     kind: RunnerKind,
     context: Option<MinimaxContext>,
-    table: Option<HashMap<u128, TTEntry>>,
+    table: Option<&'a mut HashMap<u128, TTEntry>>,
     map: Option<MovementMap>,
     stats: Stats,
 }
 
-impl Runner {
+impl<'a> Runner<'a> {
     pub fn random() -> Self {
         Self {
             kind: RunnerKind::Random,
@@ -34,7 +34,7 @@ impl Runner {
         }
     }
 
-    pub fn ai(context: MinimaxContext, table: HashMap<u128, TTEntry>) -> Self {
+    pub fn ai(context: MinimaxContext, table: &'a mut HashMap<u128, TTEntry>) -> Self {
         Self {
             kind: RunnerKind::AI,
             context: Some(context),
