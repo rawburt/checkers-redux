@@ -420,7 +420,6 @@ impl fmt::Display for Board {
     }
 }
 
-
 #[cfg(test)]
 mod test {
     use super::*;

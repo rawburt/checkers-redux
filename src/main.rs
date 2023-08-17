@@ -1,6 +1,6 @@
-use std::collections::HashMap;
 use clap::Parser;
 use rand::prelude::SliceRandom;
+use std::collections::HashMap;
 
 mod ai;
 mod checkers;
@@ -28,7 +28,7 @@ fn main() {
 
     let mut stats = Stats::new();
 
-    let mut table : Option<HashMap<Board, TTEntry>> = None;
+    let mut table: Option<HashMap<Board, TTEntry>> = None;
     if cli.transposition_table {
         table = Some(HashMap::new());
     }

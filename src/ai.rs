@@ -46,6 +46,8 @@ enum Flag {
 
 // Ch2 The Transposition Table
 // https://breukerd.home.xs4all.nl/thesis/
+// ignored the "try table move first" bit.
+// based on Marsland 1986
 pub struct TTEntry {
     score: i32,
     depth: u8,
