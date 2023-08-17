@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use crate::checkers::{Board, Movement, Player, Square, VALID_SQUARES};
 
 const BACK_ROW: [usize; 8] = [5, 6, 7, 8, 37, 38, 39, 40];
@@ -36,10 +38,54 @@ fn evaluate(player: Player, board: &Board) -> i32 {
     (2 * pawns) + (5 * kings) + back_row
 }
 
+enum Flag {
+    ExactValue,
+    LowerBound,
+    UpperBound,
+}
+
+// Ch2 The Transposition Table
+// https://breukerd.home.xs4all.nl/thesis/
+pub struct TTEntry {
+    score: i32,
+    depth: u8,
+    flag: Flag,
+}
+
 const MAX: i32 = i32::MAX - 1;
 const MIN: i32 = i32::MIN + 1;
 
-fn negamax(player: Player, board: &mut Board, depth: u8, mut alpha: i32, beta: i32) -> i32 {
+fn negamax(
+    player: Player,
+    board: &mut Board,
+    table: &mut Option<HashMap<Board, TTEntry>>,
+    stats: &mut Stats,
+    depth: u8,
+    mut alpha: i32,
+    mut beta: i32,
+) -> i32 {
+    let old_alpha = alpha;
+
+    if let Some(table) = table {
+        if let Some(entry) = table.get(board) {
+            stats.entry_hits += 1;
+            if entry.depth >= depth {
+                match entry.flag {
+                    Flag::ExactValue => {
+                        stats.table_used += 1;
+                        return entry.score;
+                    }
+                    Flag::LowerBound => alpha = alpha.max(entry.score),
+                    Flag::UpperBound => beta = beta.min(entry.score),
+                }
+                if alpha >= beta {
+                    stats.table_used += 1;
+                    return entry.score;
+                }
+            }
+        }
+    }
+
     if depth == 0 {
         return evaluate(player, board);
     }
@@ -47,13 +93,41 @@ fn negamax(player: Player, board: &mut Board, depth: u8, mut alpha: i32, beta: i
     let mut value = MIN;
 
     for m in board.movements(player) {
+        stats.explored += 1;
         board.do_movement(&m);
-        value = value.max(-negamax(player.other(), board, depth - 1, -beta, -alpha));
+        value = value.max(-negamax(
+            player.other(),
+            board,
+            table,
+            stats,
+            depth - 1,
+            -beta,
+            -alpha,
+        ));
         board.undo_movement(&m);
         alpha = alpha.max(value);
         if alpha >= beta {
             break;
         }
+    }
+
+    if let Some(table) = table {
+        let flag = if value <= old_alpha {
+            Flag::UpperBound
+        } else if value >= beta {
+            Flag::LowerBound
+        } else {
+            Flag::ExactValue
+        };
+
+        table.insert(
+            *board,
+            TTEntry {
+                score: value,
+                depth,
+                flag,
+            },
+        );
     }
 
     value
@@ -99,6 +173,7 @@ pub fn search(
     player: Player,
     board: &mut Board,
     alpha_beta: bool,
+    table: &mut Option<HashMap<Board, TTEntry>>,
     depth: u8,
     stats: &mut Stats,
 ) -> Option<Movement> {
@@ -115,7 +190,7 @@ pub fn search(
         stats.explored += 1;
         board.do_movement(&m);
         let v = if alpha_beta {
-            -negamax(player.other(), board, depth, MIN, MAX)
+            -negamax(player.other(), board, table, stats, depth, MIN, MAX)
         } else {
             minimax(player.other(), board, depth, false, stats)
         };
@@ -131,9 +206,10 @@ pub fn search(
 
 #[derive(Debug)]
 pub struct Stats {
-    explored: u32,
-    entry_hits: u32,
-    table_used: u32,
+    pub explored: u32,
+    pub entry_hits: u32,
+    pub table_used: u32,
+    pub moves: u32,
 }
 
 impl Stats {
@@ -142,6 +218,7 @@ impl Stats {
             explored: 0,
             entry_hits: 0,
             table_used: 0,
+            moves: 0,
         }
     }
 
@@ -149,6 +226,7 @@ impl Stats {
         self.explored = 0;
         self.entry_hits = 0;
         self.table_used = 0;
+        self.moves = 0;
     }
 }
 
@@ -157,19 +235,28 @@ mod test {
     use super::*;
 
     #[test]
-    fn test_negamax_is_same_as_minimax_is_same_as_alphabeta() {
+    fn test_negamax_is_same_as_minimax() {
         let mut board1 = Board::new();
         let mut move_list_1 = Vec::new();
         let mut stats = Stats::new();
         loop {
-            if let Some(movement) = search(Player::Player1, &mut board1, true, 6, &mut stats) {
+            if let Some(movement) =
+                search(Player::Player1, &mut board1, true, &mut None, 6, &mut stats)
+            {
                 board1.do_movement(&movement);
                 move_list_1.push(movement);
             } else {
                 break;
             }
             board1.mark_kings();
-            if let Some(movement) = search(Player::Player2, &mut board1, false, 6, &mut stats) {
+            if let Some(movement) = search(
+                Player::Player2,
+                &mut board1,
+                false,
+                &mut None,
+                6,
+                &mut stats,
+            ) {
                 board1.do_movement(&movement);
                 move_list_1.push(movement);
             } else {
@@ -181,15 +268,25 @@ mod test {
         stats.reset();
         let mut board2 = Board::new();
         let mut move_list_2 = Vec::new();
+        let mut table = Some(HashMap::new());
         loop {
-            if let Some(movement) = search(Player::Player1, &mut board2, true, 6, &mut stats) {
+            if let Some(movement) = search(
+                Player::Player1,
+                &mut board2,
+                true,
+                &mut table,
+                6,
+                &mut stats,
+            ) {
                 board2.do_movement(&movement);
                 move_list_2.push(movement);
             } else {
                 break;
             }
             board2.mark_kings();
-            if let Some(movement) = search(Player::Player2, &mut board2, true, 6, &mut stats) {
+            if let Some(movement) =
+                search(Player::Player2, &mut board2, true, &mut None, 6, &mut stats)
+            {
                 board2.do_movement(&movement);
                 move_list_2.push(movement);
             } else {

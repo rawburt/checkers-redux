@@ -1,10 +1,11 @@
+use std::collections::HashMap;
 use clap::Parser;
 use rand::prelude::SliceRandom;
 
 mod ai;
 mod checkers;
 
-use ai::{search, Stats};
+use ai::{search, Stats, TTEntry};
 use checkers::{Board, Player};
 
 #[derive(Parser)]
@@ -27,6 +28,11 @@ fn main() {
 
     let mut stats = Stats::new();
 
+    let mut table : Option<HashMap<Board, TTEntry>> = None;
+    if cli.transposition_table {
+        table = Some(HashMap::new());
+    }
+
     for _ in 0..cli.games {
         let mut board = Board::new();
         let loser;
@@ -36,10 +42,12 @@ fn main() {
                 Player::Player1,
                 &mut board,
                 cli.alpha_beta,
+                &mut table,
                 cli.depth,
                 &mut stats,
             ) {
                 board.do_movement(&movement);
+                stats.moves += 1;
             } else {
                 loser = Player::Player1;
                 break;
@@ -54,6 +62,7 @@ fn main() {
             }
             if let Some(movement) = movements.choose(&mut rand::thread_rng()) {
                 board.do_movement(movement);
+                stats.moves += 1;
             } else {
                 panic!();
             }
@@ -63,6 +72,7 @@ fn main() {
             Player::Player1 => player2 += 1,
             Player::Player2 => player1 += 1,
         };
+        dbg!(&stats);
         println!("{}", board);
         stats.reset();
     }
