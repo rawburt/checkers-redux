@@ -55,9 +55,9 @@ fn game_loop(mut player1: Runner, mut player2: Runner) {
     }
 
     match winner {
-        None => println!("draw"),
-        Some(Player::Player1) => println!("player 1"),
-        Some(Player::Player2) => println!("player 2"),
+        None => println!("winner: draw"),
+        Some(Player::Player1) => println!("winner: player 1"),
+        Some(Player::Player2) => println!("winner: player 2"),
     }
 }
 
