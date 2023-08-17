@@ -502,6 +502,8 @@ fn alphabeta(
     table: &mut Option<Table>,
     stats: &mut Stats,
 ) -> i32 {
+    let alpha_orig = alpha;
+
     if let Some(table) = table {
         if let Some(entry) = table.get(board) {
             stats.entry_hits += 1;
@@ -576,7 +578,7 @@ fn alphabeta(
         }
     }
     if let Some(table) = table {
-        let flag = if value <= alpha {
+        let flag = if value <= alpha_orig {
             Flag::Upperbound
         } else if value >= beta {
             Flag::Lowerbound
