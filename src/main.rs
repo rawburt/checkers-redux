@@ -124,6 +124,9 @@ struct Cli {
     /// Enable the use of a Transposition Table with Alpha-Beta Pruning for Player 1
     #[arg(long)]
     p1_transposition_table: bool,
+    /// Enable quiescence search for Player 1
+    #[arg(long)]
+    p1_quiescence: bool,
     /// AI search depth limit for Player 1
     #[arg(long, default_value_t = 6)]
     p1_depth: u32,
@@ -139,6 +142,9 @@ struct Cli {
     /// Enable the use of a Transposition Table with Alpha-Beta Pruning for Player 2
     #[arg(long)]
     p2_transposition_table: bool,
+    /// Enable quiescence search for Player 2
+    #[arg(long)]
+    p2_quiescence: bool,
     /// AI search depth limit for Player 2
     #[arg(long, default_value_t = 6)]
     p2_depth: u32,
@@ -162,12 +168,14 @@ fn display_cli_config(cli: &Cli) {
     println!("config.player1.engine = {}", cli.p1_engine);
     println!("config.player1.alpha_beta = {}", cli.p1_alpha_beta);
     println!("config.player1.transposition_table = {}", cli.p1_transposition_table);
+    println!("config.player1.quiescence = {}", cli.p1_quiescence);
     println!("config.player1.depth = {}", cli.p1_depth);
     println!("config.player1.eval = {}", cli.p1_eval);
 
     println!("config.player2.engine = {}", cli.p2_engine);
     println!("config.player2.alpha_beta = {}", cli.p2_alpha_beta);
     println!("config.player2.transposition_table = {}", cli.p2_transposition_table);
+    println!("config.player1.quiescence = {}", cli.p2_quiescence);
     println!("config.player2.depth = {}", cli.p2_depth);
     println!("config.player2.eval = {}", cli.p2_eval);
 }
@@ -181,6 +189,7 @@ fn main() {
         table: cli.p1_transposition_table,
         depth: cli.p1_depth,
         alpha_beta: cli.p1_alpha_beta || cli.p1_transposition_table,
+        quiescence: cli.p1_quiescence,
         heuristic: cli.p1_eval.to_fn(),
     };
 
@@ -188,6 +197,7 @@ fn main() {
         table: cli.p2_transposition_table,
         depth: cli.p2_depth,
         alpha_beta: cli.p2_alpha_beta || cli.p2_transposition_table,
+        quiescence: cli.p2_quiescence,
         heuristic: cli.p1_eval.to_fn(),
     };
 
@@ -240,6 +250,7 @@ mod test {
             table: false,
             depth: 6,
             alpha_beta: true,
+            quiescence: false,
             heuristic: evaluation1,
         };
         let mut table = HashMap::new();

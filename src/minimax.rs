@@ -40,7 +40,7 @@ pub fn evaluation2(board: &Board, player: Player) -> i32 {
                             if BACKP1.contains(&id) {
                                 score += 1;
                             }
-                        },
+                        }
                         Player::Player2 => {
                             if BACKP2.contains(&id) {
                                 score += 1;
@@ -70,7 +70,7 @@ pub fn evaluation2(board: &Board, player: Player) -> i32 {
                         if BACKP1.contains(&id) {
                             score -= 1;
                         }
-                    },
+                    }
                     Player::Player2 => {
                         if BACKP2.contains(&id) {
                             score -= 1;
@@ -80,6 +80,7 @@ pub fn evaluation2(board: &Board, player: Player) -> i32 {
             }
         }
     }
+
     score
 }
 
@@ -126,6 +127,7 @@ pub struct MinimaxContext {
     pub table: bool,
     pub depth: u32,
     pub alpha_beta: bool,
+    pub quiescence: bool,
     pub heuristic: fn(&Board, Player) -> i32,
 }
 
@@ -136,13 +138,19 @@ fn minimax(
     board: &mut Board,
     player: Player,
     table: &mut HashMap<u128, TTEntry>,
-    depth: u32,
+    mut depth: u32,
     mut alpha: i32,
     mut beta: i32,
 ) -> MinimaxResult {
     let alpha_orig = alpha;
     let mut best_move: Option<Movement> = None;
     let movements = board.movements(player);
+
+    if depth == 0 && ctx.quiescence {
+        if !movements.is_empty() && movements[0].is_jump() {
+            depth = 1;
+        }
+    }
 
     if depth == 0 || movements.is_empty() {
         let result = MinimaxResult {
