@@ -97,7 +97,7 @@ fn negamax(
     for m in board.movements(player) {
         stats.explored += 1;
         board.do_movement(&m);
-        value = value.max(-negamax(
+        let score = value.max(-negamax(
             player.other(),
             board,
             table,
@@ -107,9 +107,12 @@ fn negamax(
             -alpha,
         ));
         board.undo_movement(&m);
-        alpha = alpha.max(value);
-        if alpha >= beta {
-            break;
+        if score > value {
+            value = score;
+            alpha = alpha.max(value);
+            if alpha >= beta {
+                break;
+            }
         }
     }
 
@@ -270,13 +273,13 @@ mod test {
         stats.reset();
         let mut board2 = Board::new();
         let mut move_list_2 = Vec::new();
-        let mut table = Some(HashMap::new());
+        let mut table1 = Some(HashMap::new());
         loop {
             if let Some(movement) = search(
                 Player::Player1,
                 &mut board2,
                 true,
-                &mut table,
+                &mut table1,
                 6,
                 &mut stats,
             ) {
