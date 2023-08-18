@@ -72,6 +72,10 @@ impl<'a> Runner<'a> {
             "game.{}.{}.tt_cuts = {}",
             &gameid, player, self.stats.tt_cuts
         );
+        println!(
+            "game.{}.{}.max_depth = {}",
+            &gameid, player, self.stats.max_depth
+        );
     }
 
     pub fn get_move(&mut self, board: &mut Board, player: Player) -> Option<Movement> {
@@ -84,15 +88,13 @@ impl<'a> Runner<'a> {
                 self.stats.moves += 1;
                 movements.choose(&mut rand::thread_rng()).cloned()
             }
-            RunnerKind::AI => {
-                get_movement(
-                    &mut self.stats,
-                    self.context.as_ref().unwrap(),
-                    board,
-                    player,
-                    self.table.as_mut().unwrap(),
-                )
-            }
+            RunnerKind::AI => get_movement(
+                &mut self.stats,
+                self.context.as_ref().unwrap(),
+                board,
+                player,
+                self.table.as_mut().unwrap(),
+            ),
             RunnerKind::Human => {
                 let movements = board.movements(Player::Player1);
                 if movements.is_empty() {

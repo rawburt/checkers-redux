@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, time::Instant};
 
 use crate::checkers::{Board, Movement, Player, Square, VALID_SQUARES};
 
@@ -148,6 +148,7 @@ pub struct Stats {
     pub beta_cuts: u32,
     pub tt_exact: u32,
     pub tt_cuts: u32,
+    pub max_depth: u32,
 }
 
 impl Stats {
@@ -158,6 +159,7 @@ impl Stats {
             beta_cuts: 0,
             tt_exact: 0,
             tt_cuts: 0,
+            max_depth: 0,
         }
     }
 }
@@ -186,6 +188,7 @@ pub struct MinimaxContext {
     pub depth: u32,
     pub alpha_beta: bool,
     pub quiescence: bool,
+    pub iterative: bool,
     pub verbose: bool,
     pub heuristic: fn(&Board, Player) -> i32,
 }
@@ -307,6 +310,9 @@ fn minimax(
     }
 }
 
+const MAX_DEPTH: u32 = 20;
+const MAX_TIME_MS: u128 = 50;
+
 pub fn get_movement(
     stats: &mut Stats,
     ctx: &MinimaxContext,
@@ -323,14 +329,36 @@ pub fn get_movement(
     let mut best_movement: Option<Movement> = None;
     let mut best_score = None;
 
-    for d in 1..=ctx.depth {
+    if ctx.iterative {
+        let timer = Instant::now();
+        for d in 1..=MAX_DEPTH {
+            let result = minimax(
+                stats,
+                ctx,
+                board,
+                player,
+                table,
+                d,
+                i32::MIN + 1,
+                i32::MAX - 1,
+            );
+            if let Some(m) = result.movement {
+                best_movement = Some(m);
+                best_score = Some(result.score);
+                stats.max_depth = d;
+            }
+            if timer.elapsed().as_millis() > MAX_TIME_MS {
+                break;
+            }
+        }
+    } else {
         let result = minimax(
             stats,
             ctx,
             board,
             player,
             table,
-            d,
+            ctx.depth,
             i32::MIN + 1,
             i32::MAX - 1,
         );
