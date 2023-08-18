@@ -66,8 +66,8 @@ fn game_loop(mut player1: Runner, mut player2: Runner, gameid: &Uuid, verbose: b
 
     match winner {
         None => println!("game.{}.winner = draw", &gameid),
-        Some(Player::Player1) => println!("game.{}.winner = player 1", &gameid),
-        Some(Player::Player2) => println!("game.{}.winner = player 2", &gameid),
+        Some(Player::Player1) => println!("game.{}.winner = player1", &gameid),
+        Some(Player::Player2) => println!("game.{}.winner = player2", &gameid),
     }
 
     player1.display_stats("player1", gameid);

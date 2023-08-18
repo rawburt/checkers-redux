@@ -416,17 +416,17 @@ fn minimax(
         depth = 1;
     }
 
-    max_depth += 1;
-    if stats.max_depth < max_depth {
-        stats.max_depth = max_depth;
-    }
-
     if depth == 0 || movements.is_empty() {
         let result = MinimaxResult {
             score: (ctx.heuristic)(board, player),
             movement: best_move,
         };
         return result;
+    }
+
+    max_depth += 1;
+    if stats.max_depth < max_depth {
+        stats.max_depth = max_depth;
     }
 
     if ctx.table {
