@@ -400,6 +400,7 @@ pub struct MinimaxContext {
 fn minimax(
     stats: &mut Stats,
     ctx: &MinimaxContext,
+    mut max_depth: u32,
     board: &mut Board,
     player: Player,
     table: &mut HashMap<u128, TTEntry>,
@@ -413,6 +414,11 @@ fn minimax(
 
     if depth == 0 && ctx.quiescence && !movements.is_empty() && movements[0].is_jump() {
         depth = 1;
+    }
+
+    max_depth += 1;
+    if stats.max_depth < max_depth {
+        stats.max_depth = max_depth;
     }
 
     if depth == 0 || movements.is_empty() {
@@ -456,7 +462,7 @@ fn minimax(
         }
     }
 
-    let mut value = i32::MIN;
+    let mut value = i32::MIN + 1;
 
     for m in movements {
         stats.explored += 1;
@@ -464,6 +470,7 @@ fn minimax(
         let score = -minimax(
             stats,
             ctx,
+            max_depth,
             board,
             player.other(),
             table,
@@ -541,6 +548,7 @@ pub fn get_movement(
             let result = minimax(
                 stats,
                 ctx,
+                0,
                 board,
                 player,
                 table,
@@ -551,13 +559,13 @@ pub fn get_movement(
             if let Some(m) = result.movement {
                 best_movement = Some(m);
                 best_score = Some(result.score);
-                stats.max_depth = d;
             }
         }
     } else {
         let result = minimax(
             stats,
             ctx,
+            0,
             board,
             player,
             table,
