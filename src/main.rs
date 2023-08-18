@@ -105,7 +105,7 @@ impl std::fmt::Display for Eval {
 }
 
 impl Eval {
-    fn to_fn(&self) -> fn(&Board, Player) -> i32 {
+    fn as_fn(&self) -> fn(&Board, Player) -> i32 {
         match self {
             Eval::V1 => evaluation1,
             Eval::V2 => evaluation2,
@@ -151,7 +151,7 @@ struct Cli {
     /// Player 2 evaluation function
     #[arg(long, default_value = "v1")]
     p2_eval: Eval,
-    /// You (Player 1) against the AI (Player 2)
+    /// You (Player 1) against the engine (Player 2)
     #[arg(long)]
     play: bool,
     /// How many games to simulate
@@ -159,23 +159,30 @@ struct Cli {
     games: u32,
     /// Show moves made by engines during simulation
     #[arg(short, long)]
-    verbose: bool
+    verbose: bool,
 }
 
 fn display_cli_config(cli: &Cli) {
     println!("config.games = {}", cli.games);
+    println!("config.verbose = {}", cli.verbose);
 
     println!("config.player1.engine = {}", cli.p1_engine);
     println!("config.player1.alpha_beta = {}", cli.p1_alpha_beta);
-    println!("config.player1.transposition_table = {}", cli.p1_transposition_table);
+    println!(
+        "config.player1.transposition_table = {}",
+        cli.p1_transposition_table
+    );
     println!("config.player1.quiescence = {}", cli.p1_quiescence);
     println!("config.player1.depth = {}", cli.p1_depth);
     println!("config.player1.eval = {}", cli.p1_eval);
 
     println!("config.player2.engine = {}", cli.p2_engine);
     println!("config.player2.alpha_beta = {}", cli.p2_alpha_beta);
-    println!("config.player2.transposition_table = {}", cli.p2_transposition_table);
-    println!("config.player1.quiescence = {}", cli.p2_quiescence);
+    println!(
+        "config.player2.transposition_table = {}",
+        cli.p2_transposition_table
+    );
+    println!("config.player2.quiescence = {}", cli.p2_quiescence);
     println!("config.player2.depth = {}", cli.p2_depth);
     println!("config.player2.eval = {}", cli.p2_eval);
 }
@@ -190,7 +197,8 @@ fn main() {
         depth: cli.p1_depth,
         alpha_beta: cli.p1_alpha_beta || cli.p1_transposition_table,
         quiescence: cli.p1_quiescence,
-        heuristic: cli.p1_eval.to_fn(),
+        verbose: cli.verbose,
+        heuristic: cli.p1_eval.as_fn(),
     };
 
     let ctx_p2 = MinimaxContext {
@@ -198,7 +206,8 @@ fn main() {
         depth: cli.p2_depth,
         alpha_beta: cli.p2_alpha_beta || cli.p2_transposition_table,
         quiescence: cli.p2_quiescence,
-        heuristic: cli.p2_eval.to_fn(),
+        verbose: cli.verbose,
+        heuristic: cli.p2_eval.as_fn(),
     };
 
     if cli.play {
@@ -251,6 +260,7 @@ mod test {
             depth: 6,
             alpha_beta: true,
             quiescence: false,
+            verbose: false,
             heuristic: evaluation1,
         };
         let mut table = HashMap::new();

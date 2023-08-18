@@ -24,7 +24,7 @@ pub fn evaluation1(board: &Board, player: Player) -> i32 {
             }
         }
     }
-    (1 * pawn) + (3 * king)
+    pawn + (3 * king)
 }
 
 pub fn evaluation2(board: &Board, player: Player) -> i32 {
@@ -48,6 +48,7 @@ pub fn evaluation2(board: &Board, player: Player) -> i32 {
                         kcent += 1;
                     }
                 } else {
+                    pawns += 1;
                     match player {
                         Player::Player1 => {
                             if BACKP1.contains(&id) {
@@ -62,10 +63,9 @@ pub fn evaluation2(board: &Board, player: Player) -> i32 {
                     };
                     if player == Player::Player1 && id >= 28 {
                         tempo += 1;
-                    } else if player == Player::Player2 && id <= 17 {
+                    }
+                    if player == Player::Player2 && id <= 17 {
                         tempo += 1;
-                    } else {
-                        pawns += 1;
                     }
                 }
             } else if piece.is_king() {
@@ -76,12 +76,12 @@ pub fn evaluation2(board: &Board, player: Player) -> i32 {
                 }
             } else {
                 you += 1;
+                pawns -= 1;
                 if player == Player::Player1 && id <= 17 {
                     tempo -= 1;
-                } else if player == Player::Player2 && id >= 28 {
+                }
+                if player == Player::Player2 && id >= 28 {
                     tempo -= 1;
-                } else {
-                    pawns -= 1;
                 }
                 match player.other() {
                     Player::Player1 => {
@@ -186,6 +186,7 @@ pub struct MinimaxContext {
     pub depth: u32,
     pub alpha_beta: bool,
     pub quiescence: bool,
+    pub verbose: bool,
     pub heuristic: fn(&Board, Player) -> i32,
 }
 
@@ -204,10 +205,8 @@ fn minimax(
     let mut best_move: Option<Movement> = None;
     let movements = board.movements(player);
 
-    if depth == 0 && ctx.quiescence {
-        if !movements.is_empty() && movements[0].is_jump() {
-            depth = 1;
-        }
+    if depth == 0 && ctx.quiescence && !movements.is_empty() && movements[0].is_jump() {
+        depth = 1;
     }
 
     if depth == 0 || movements.is_empty() {
@@ -322,6 +321,7 @@ pub fn get_movement(
     }
 
     let mut best_movement: Option<Movement> = None;
+    let mut best_score = None;
 
     for d in 1..=ctx.depth {
         let result = minimax(
@@ -336,6 +336,15 @@ pub fn get_movement(
         );
         if let Some(m) = result.movement {
             best_movement = Some(m);
+            best_score = Some(result.score);
+        }
+    }
+
+    if ctx.verbose {
+        if best_score.is_some() {
+            println!("minimax engine score: {}", best_score.unwrap());
+        } else {
+            println!("no score found");
         }
     }
 

@@ -1,6 +1,7 @@
 use std::collections::HashMap;
+use std::io::Write;
 
-use crate::checkers::{Board, Movement, Square, SquareState};
+use crate::checkers::{Board, Movement, Player, Square, SquareState};
 
 pub struct MovementMap {
     pub map: HashMap<String, usize>,
@@ -78,9 +79,9 @@ fn parse_jump(
     let end = map.get(steps[idx + 2])?;
 
     // nested jump from a multi-jump
-    if let Some(start) = moving {
+    if let Some(m) = moving {
         if let Square::Taken(jumped_piece) = board.get(*jumped) {
-            let square_start = SquareState::piece(start.id, start.piece.unwrap().clone());
+            let square_start = SquareState::piece(*start, m.piece.unwrap());
             let square_jumped = SquareState::piece(*jumped, jumped_piece);
             let square_end = SquareState::empty(*end);
             return Some(Movement::jump(square_start, square_end, square_jumped));
@@ -96,6 +97,7 @@ fn parse_jump(
             return Some(Movement::jump(square_start, square_end, square_jumped));
         }
     }
+
     None
 }
 
@@ -126,6 +128,9 @@ pub fn parse_input(line: &mut str, board: &Board, map: &MovementMap) -> Option<M
     let steps: Vec<&str> = line.trim().split(' ').collect();
 
     if steps.len() < 3 {
+        if !steps.is_empty() && steps[0] == "?" {
+            dbg!(board.movements(Player::Player1));
+        }
         return None;
     }
 
@@ -143,7 +148,7 @@ pub fn parse_input(line: &mut str, board: &Board, map: &MovementMap) -> Option<M
         "J:" => parse_jump(board, map, &steps, 1, None),
         "M:" => {
             let mut jump = parse_jump(board, map, &steps, 2, None)?;
-            let moving = jump.from().clone();
+            let moving = jump.from();
             parse_multi_jump(board, map, &steps, 5, &mut jump, moving);
             Some(jump)
         }
@@ -152,6 +157,7 @@ pub fn parse_input(line: &mut str, board: &Board, map: &MovementMap) -> Option<M
 }
 
 pub fn get_user_input(board: &Board, map: &MovementMap) -> Option<Movement> {
+    std::io::stdout().flush().unwrap();
     let mut line = String::new();
     std::io::stdin().read_line(&mut line).unwrap();
     parse_input(&mut line, board, map)
@@ -173,5 +179,33 @@ mod test {
         let mut input = "M: J: B7 C6 D5 J: D5 E4 F3".to_string();
         let movement = parse_input(&mut input, &board, &map);
         assert!(movement.is_some());
+        let expected = Movement::multi_jump(
+            SquareState::piece(10, Piece::player1_pawn()),
+            SquareState::empty(20),
+            SquareState::piece(15, Piece::player2_pawn()),
+            Box::new(Movement::jump(
+                SquareState::piece(20, Piece::player1_pawn()),
+                SquareState::empty(30),
+                SquareState::piece(25, Piece::player2_pawn()),
+            )),
+        );
+        assert_eq!(expected, movement.unwrap());
+    }
+
+    #[test]
+    fn test_parse_jump() {
+        let mut board = Board::empty();
+        board.set(17, Square::Taken(Piece::player1_pawn()));
+        board.set(21, Square::Taken(Piece::player2_pawn()));
+        let map = MovementMap::new();
+        let mut input = "J: G6 F5 E4".to_string();
+        let movement = parse_input(&mut input, &board, &map);
+        assert!(movement.is_some());
+        let expected = Movement::jump(
+            SquareState::piece(17, Piece::player1_pawn()),
+            SquareState::empty(25),
+            SquareState::piece(21, Piece::player2_pawn()),
+        );
+        assert_eq!(expected, movement.unwrap());
     }
 }

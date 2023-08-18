@@ -84,13 +84,15 @@ impl<'a> Runner<'a> {
                 self.stats.moves += 1;
                 movements.choose(&mut rand::thread_rng()).cloned()
             }
-            RunnerKind::AI => get_movement(
-                &mut self.stats,
-                self.context.as_ref().unwrap(),
-                board,
-                player,
-                self.table.as_mut().unwrap(),
-            ),
+            RunnerKind::AI => {
+                get_movement(
+                    &mut self.stats,
+                    self.context.as_ref().unwrap(),
+                    board,
+                    player,
+                    self.table.as_mut().unwrap(),
+                )
+            }
             RunnerKind::Human => {
                 let movements = board.movements(Player::Player1);
                 if movements.is_empty() {
