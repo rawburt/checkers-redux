@@ -1,5 +1,5 @@
 use clap::{Parser, ValueEnum};
-use minimax::{evaluation1, evaluation2, MinimaxContext};
+use minimax::{evaluation1, evaluation2, MinimaxContext, evaluation3};
 use runner::Runner;
 use std::collections::HashMap;
 use uuid::Uuid;
@@ -93,6 +93,7 @@ impl std::fmt::Display for Engine {
 enum Eval {
     V1,
     V2,
+    V3,
 }
 
 impl std::fmt::Display for Eval {
@@ -100,6 +101,7 @@ impl std::fmt::Display for Eval {
         match self {
             Eval::V1 => write!(f, "v1"),
             Eval::V2 => write!(f, "v2"),
+            Eval::V3 => write!(f, "v3"),
         }
     }
 }
@@ -109,6 +111,7 @@ impl Eval {
         match self {
             Eval::V1 => evaluation1,
             Eval::V2 => evaluation2,
+            Eval::V3 => evaluation3,
         }
     }
 }

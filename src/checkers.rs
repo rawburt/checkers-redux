@@ -48,7 +48,7 @@ impl Piece {
         ZobristHash::piece_id(*self)
     }
 
-    fn movements(&self) -> &[i32] {
+    pub fn movements(&self) -> &[i32] {
         if self.king {
             return &[-4, -5, 4, 5];
         }

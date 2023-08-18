@@ -142,6 +142,209 @@ pub fn evaluation2(board: &Board, player: Player) -> i32 {
         + (10 * cramp)
 }
 
+// Advancement
+const ADV_5_6: [usize; 8] = [23, 24, 25, 26, 28, 29, 30, 31];
+const ADV_3_4: [usize; 8] = [14, 15, 16, 17, 19, 20, 21, 22];
+
+// Move
+const MOVE_SYSTEM: [usize; 16] = [5, 6, 7, 8, 14, 15, 16, 17, 23, 24, 25, 26, 32, 33, 34, 35];
+
+pub fn evaluation3(board: &Board, player: Player) -> i32 {
+    let mut mob = 0;
+    let mut deny = 0;
+    let mut center = 0;
+    let mut king_center = 0;
+    let mut mov = 0;
+    let mut adv = 0;
+    let mut back = 0;
+    let mut thret = 0;
+    let mut me_kings = 0;
+    let mut me_pawns = 0;
+    let mut you_kings = 0;
+    let mut you_pawns = 0;
+
+    for id in VALID_SQUARES {
+        if let Square::Taken(piece) = board.get(id) {
+            // basic piece counts
+            if piece.get_player() == player {
+                if piece.is_king() {
+                    me_kings += 1;
+                } else {
+                    me_pawns += 1;
+                }
+            } else if piece.is_king() {
+                you_kings += 1;
+            } else {
+                you_pawns += 1;
+            }
+            // total mobility (can the piece move somewhere?)
+            for m in piece.movements() {
+                let id_to = (id as i32 + m) as usize;
+                if let Square::Empty = board.get(id_to) {
+                    if piece.get_player() == player {
+                        mob += 1;
+                    }
+
+                    // denial of occupancy (will this movement allow capture for other player?)
+                    for s in &[-5, -4, 4, 5] {
+                        let id_surround = (id_to as i32 + s) as usize;
+                        if let Square::Taken(surround_piece) = board.get(id_surround) {
+                            if surround_piece.get_player() != player {
+                                // where opponent will land on their jump
+                                let id_jump_land = (id_to as i32 - s) as usize;
+                                if let Square::Empty = board.get(id_jump_land) {
+                                    // do i have any pieces that can jump back?
+                                    // NAIVE: TODO: FIX
+                                    for j in &[-5, -4, 4, 5] {
+                                        let id_defend = (id_jump_land as i32 + j) as usize;
+                                        if let Square::Taken(defender) = board.get(id_defend) {
+                                            if defender.get_player() == player {
+                                                deny += 1;
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // threat (does this movement threaten a capture?)
+                    for j in piece.movements() {
+                        let id_jump = (id_to as i32 + j) as usize;
+                        if let Square::Taken(jumped_piece) = board.get(id_jump) {
+                            if jumped_piece.get_player() != piece.get_player() {
+                                let id_land = (id_jump as i32 + j) as usize;
+                                if let Square::Empty = board.get(id_land) {
+                                    if piece.get_player() == player {
+                                        thret += 1;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    let me = (2 * me_pawns) + (3 * me_kings);
+    let you = (2 * you_pawns) + (3 * you_kings);
+
+    // Move
+    if me < 25 && me == you {
+        let mut count = 0;
+        for id in MOVE_SYSTEM {
+            if let Square::Taken(_) = board.get(id) {
+                count += 1;
+            }
+        }
+        if count % 2 == 0 {
+            mov = 1;
+        }
+    }
+
+    // Advancement
+    for id in ADV_3_4 {
+        if let Square::Taken(piece) = board.get(id) {
+            if piece.get_player() == Player::Player2 {
+                if player == Player::Player2 {
+                    adv += 1;
+                } else {
+                    adv -= 1;
+                }
+            } else {
+                if player == Player::Player1 {
+                    adv -= 1;
+                } else {
+                    adv += 1;
+                }
+            }
+        }
+    }
+    for id in ADV_5_6 {
+        if let Square::Taken(piece) = board.get(id) {
+            if piece.get_player() == Player::Player1 {
+                if player == Player::Player1 {
+                    adv += 1;
+                } else {
+                    adv -= 1;
+                }
+            } else {
+                if player == Player::Player2 {
+                    adv -= 1;
+                } else {
+                    adv += 1;
+                }
+            }
+        }
+    }
+
+    // Back Row Bridge
+    if me_kings == 0 {
+        if let (Square::Taken(_), Square::Taken(_)) = (board.get(6), board.get(8)) {
+            if player == Player::Player1 {
+                back = 1;
+            }
+        }
+        if let (Square::Taken(_), Square::Taken(_)) = (board.get(37), board.get(39)) {
+            if player == Player::Player2 {
+                back = 1;
+            }
+        }
+    }
+
+    // center control and king center
+    for id in CENTER {
+        if let Square::Taken(piece) = board.get(id) {
+            center += 1;
+            if piece.is_king() {
+                king_center += 1;
+            }
+        }
+    }
+
+    let mobil = mob - deny;
+    let undenied_mobility = mobil > 0;
+    let total_mobility = mob > 0;
+    let denial_of_occupancy = deny > 0;
+    let control = center > 0;
+
+    let demmo = if denial_of_occupancy && !total_mobility {
+        1
+    } else {
+        0
+    };
+    let mode_2 = if undenied_mobility && !denial_of_occupancy {
+        1
+    } else {
+        0
+    };
+    let mode_3 = if !undenied_mobility && denial_of_occupancy {
+        1
+    } else {
+        0
+    };
+    let moc_2 = if !undenied_mobility && control { 1 } else { 0 };
+    let moc_3 = if undenied_mobility && !control { 1 } else { 0 };
+    let moc_4 = if !undenied_mobility && !control { 1 } else { 0 };
+
+    let b: i32 = 2;
+
+    (-moc_2 * b.pow(18))
+        + (king_center * b.pow(16))
+        + (-moc_4 * b.pow(14))
+        + (-mode_3 * b.pow(13))
+        + (-demmo * b.pow(11))
+        + (mov * b.pow(8))
+        + (-adv * b.pow(8))
+        + (-mode_2 * b.pow(8))
+        + (-back * b.pow(6))
+        + (center * b.pow(5))
+        + (thret * b.pow(5))
+        + (moc_3 * b.pow(4))
+        + ((me - you) * b.pow(20))
+}
+
 pub struct Stats {
     pub moves: u32,
     pub explored: u32,
@@ -332,6 +535,9 @@ pub fn get_movement(
     if ctx.iterative {
         let timer = Instant::now();
         for d in 1..=MAX_DEPTH {
+            if timer.elapsed().as_millis() > MAX_TIME_MS {
+                break;
+            }
             let result = minimax(
                 stats,
                 ctx,
@@ -346,9 +552,6 @@ pub fn get_movement(
                 best_movement = Some(m);
                 best_score = Some(result.score);
                 stats.max_depth = d;
-            }
-            if timer.elapsed().as_millis() > MAX_TIME_MS {
-                break;
             }
         }
     } else {
