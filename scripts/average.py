@@ -89,6 +89,20 @@ def average_player_stats(stats, total_games, player):
 average_player_stats(stats, total_games, "player1")
 average_player_stats(stats, total_games, "player2")
 
+def print_config_player(player, config):
+    for key in config[player].keys():
+        print(player, key, "=", config[player][key])
+
+def print_config(config):
+    print("---- config")
+    print("games = ", config["games"])
+    print()
+    print_config_player("player1", config)
+    print()
+    print_config_player("player2", config)
+
+print()
+print_config(data["config"])
 print()
 
 for player in stats.keys():
