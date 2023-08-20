@@ -43,3 +43,36 @@ Options:
 
 
 ## Example Output
+
+```sh
+$ ./checkers-redux --p1-transposition-table --p1-quiescence --p1-eval v3
+config.games = 1
+config.verbose = false
+config.player1.engine = ai
+config.player1.alpha_beta = false
+config.player1.transposition_table = true
+config.player1.quiescence = true
+config.player1.depth = 6
+config.player1.iterative = false
+config.player1.eval = v3
+config.player2.engine = random
+config.player2.alpha_beta = false
+config.player2.transposition_table = false
+config.player2.quiescence = false
+config.player2.depth = 6
+config.player2.iterative = false
+config.player2.eval = v1
+game.d2965032-dcad-431b-9346-4144c68a08b0.winner = player1
+game.d2965032-dcad-431b-9346-4144c68a08b0.player1.moves = 19
+game.d2965032-dcad-431b-9346-4144c68a08b0.player1.explored = 60827
+game.d2965032-dcad-431b-9346-4144c68a08b0.player1.beta_cuts = 20600
+game.d2965032-dcad-431b-9346-4144c68a08b0.player1.tt_exact = 505
+game.d2965032-dcad-431b-9346-4144c68a08b0.player1.tt_cuts = 2486
+game.d2965032-dcad-431b-9346-4144c68a08b0.player1.max_depth = 14
+game.d2965032-dcad-431b-9346-4144c68a08b0.player2.moves = 18
+game.d2965032-dcad-431b-9346-4144c68a08b0.player2.explored = 0
+game.d2965032-dcad-431b-9346-4144c68a08b0.player2.beta_cuts = 0
+game.d2965032-dcad-431b-9346-4144c68a08b0.player2.tt_exact = 0
+game.d2965032-dcad-431b-9346-4144c68a08b0.player2.tt_cuts = 0
+game.d2965032-dcad-431b-9346-4144c68a08b0.player2.max_depth = 0
+```
