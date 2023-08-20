@@ -256,12 +256,10 @@ pub fn evaluation3(board: &Board, player: Player) -> i32 {
                 } else {
                     adv -= 1;
                 }
+            } else if player == Player::Player1 {
+                adv -= 1;
             } else {
-                if player == Player::Player1 {
-                    adv -= 1;
-                } else {
-                    adv += 1;
-                }
+                adv += 1;
             }
         }
     }
@@ -273,12 +271,10 @@ pub fn evaluation3(board: &Board, player: Player) -> i32 {
                 } else {
                     adv -= 1;
                 }
+            } else if player == Player::Player2 {
+                adv -= 1;
             } else {
-                if player == Player::Player2 {
-                    adv -= 1;
-                } else {
-                    adv += 1;
-                }
+                adv += 1;
             }
         }
     }
