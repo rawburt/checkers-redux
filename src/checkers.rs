@@ -1,7 +1,10 @@
+// This module contains the main data structures that represent board state in the Checkers engine.
+
 use clap::ValueEnum;
 use rand::{thread_rng, Rng};
 use std::fmt;
 
+// Define the two players of a Checkers game.
 #[derive(Debug, PartialEq, Clone, Copy, ValueEnum, Eq, Hash)]
 pub enum Player {
     Player1,
@@ -9,6 +12,7 @@ pub enum Player {
 }
 
 impl Player {
+    // Returns the opposite player.
     pub fn other(&self) -> Player {
         match self {
             Self::Player1 => Self::Player2,
@@ -17,9 +21,12 @@ impl Player {
     }
 }
 
+// Define the types of pieces in a Checkers game.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct Piece {
+    // What player the piece belongs to.
     player: Player,
+    // If the piece is a king.
     king: bool,
 }
 
@@ -48,6 +55,7 @@ impl Piece {
         ZobristHash::piece_id(*self)
     }
 
+    // Return a slice of possible moves given the current state of the piece.
     pub fn movements(&self) -> &[i32] {
         if self.king {
             return &[-4, -5, 4, 5];
@@ -88,10 +96,15 @@ impl fmt::Display for Piece {
     }
 }
 
+// Define the state of any square on the [Board].
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Square {
+    // Invalid squares are not playable. This is a result of the padded array
+    // data structure used in the [Board] definition.
     Invalid,
+    // Empty squares are playable.
     Empty,
+    // Taken squares have a piece currently occupying them.
     Taken(Piece),
 }
 
@@ -105,9 +118,14 @@ impl fmt::Display for Square {
     }
 }
 
+// [SquareState] is used in [Movement] to represent a location on the [Board] and what
+// piece is there are the time of constructing a [Movement]. The piece state is saved
+// in order to undo movements.
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub struct SquareState {
+    // The location on the [Board].
     pub id: usize,
+    // The piece state occupying the location.
     pub piece: Option<Piece>,
 }
 
@@ -124,11 +142,16 @@ impl SquareState {
     }
 }
 
+// Define the information required to move a piece on the board.
 #[derive(Debug, PartialEq, Clone)]
 pub struct Movement {
+    // From which square the piece is moving.
     from: SquareState,
+    // To which square the piece is moving.
     to: SquareState,
+    // The piece that was jumped (if any).
     jumped: Option<SquareState>,
+    // The next jump in the movement sequence (if any).
     next: Option<Box<Movement>>,
 }
 
@@ -178,9 +201,19 @@ impl Movement {
     }
 }
 
+// Define the Zobrist hash data structure for a [Board].
 #[derive(Debug, PartialEq, Clone, Copy)]
 struct ZobristHash {
+    // Each board piece may occupy 4 different states:
+    //      * Player 1 pawn
+    //      * Player 1 king
+    //      * Player 2 pawn
+    //      * Player 2 king
+    // The board is a 46 element padded array. Thus, we use
+    // a 46 element array of 4 element array u128 random numbers.
     randoms: [[u128; 4]; 46],
+    // The currenty hash of the board that the [ZobristHash] is
+    // hashing.
     hash: u128,
 }
 
@@ -243,10 +276,8 @@ pub struct Board {
     // #    10  11  12  13      |-
     // #  05  06  07  08        |- Player 1 start (O)
     //
-    // "Some Studies in Machine Learning Using the Game of Checkers" by Arthur L. Samuel
-    //      -- alternative board layout, similar approach as Jonathan Kreuzer above
-    //
     squares: [Square; 46],
+    // The current Zobrist hash of the board state.
     zobrist: ZobristHash,
 }
 
@@ -379,6 +410,7 @@ impl Board {
         movements
     }
 
+    // Change the board state based on the given [Movement]. Updates the [ZobristHash].
     pub fn do_movement(&mut self, movement: &Movement) {
         self.squares[movement.to.id] = self.squares[movement.from.id];
         self.zobrist
@@ -396,6 +428,7 @@ impl Board {
         }
     }
 
+    // Undo the board state based on the given [Movement]. Updates the [ZobristHash].
     pub fn undo_movement(&mut self, movement: &Movement) {
         if let Some(next_movement) = &movement.next {
             self.undo_movement(next_movement);

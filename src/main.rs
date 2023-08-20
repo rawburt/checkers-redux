@@ -1,5 +1,5 @@
 use clap::{Parser, ValueEnum};
-use minimax::{evaluation1, evaluation2, MinimaxContext, evaluation3};
+use minimax::{evaluation1, evaluation2, evaluation3, MinimaxContext};
 use runner::Runner;
 use std::collections::HashMap;
 use uuid::Uuid;
@@ -14,6 +14,7 @@ use human::MovementMap;
 
 const DRAW_LIMIT: u32 = 40;
 
+// The main game loop of a game against `player1` and `player2`.
 fn game_loop(mut player1: Runner, mut player2: Runner, gameid: &Uuid, verbose: bool) {
     let mut board = Board::new();
     let mut draw = 0;
@@ -74,6 +75,7 @@ fn game_loop(mut player1: Runner, mut player2: Runner, gameid: &Uuid, verbose: b
     player2.display_stats("player2", gameid);
 }
 
+// The possible engines to use.
 #[derive(Debug, Clone, Copy, ValueEnum)]
 enum Engine {
     AI,
@@ -89,6 +91,7 @@ impl std::fmt::Display for Engine {
     }
 }
 
+// The possible evaluation functions to use.
 #[derive(Debug, Clone, Copy, ValueEnum)]
 enum Eval {
     V1,
@@ -116,6 +119,7 @@ impl Eval {
     }
 }
 
+// The command line options.
 #[derive(Parser)]
 struct Cli {
     /// Player 1 engine

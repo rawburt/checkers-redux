@@ -1,3 +1,5 @@
+// This module contains the data structures and functions used to play a game for a given type of agent.
+
 use std::collections::HashMap;
 
 use rand::prelude::SliceRandom;

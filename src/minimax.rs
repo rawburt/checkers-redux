@@ -1,3 +1,6 @@
+// This module contains the data structures and functions used to implement Minimax and the
+// various features and optimizations that the engine supports.
+
 use std::{collections::HashMap, time::Instant};
 
 use crate::checkers::{Board, Movement, Player, Square, VALID_SQUARES};
@@ -149,6 +152,7 @@ const ADV_3_4: [usize; 8] = [14, 15, 16, 17, 19, 20, 21, 22];
 // Move
 const MOVE_SYSTEM: [usize; 16] = [5, 6, 7, 8, 14, 15, 16, 17, 23, 24, 25, 26, 32, 33, 34, 35];
 
+// Based on heuristics described in Arthur L. Samuel's "Some Studies in Machine Learning Using the Game of Checkers" (1959)
 pub fn evaluation3(board: &Board, player: Player) -> i32 {
     let mut mob = 0;
     let mut deny = 0;
@@ -345,6 +349,7 @@ pub fn evaluation3(board: &Board, player: Player) -> i32 {
         + ((me - you) * b.pow(20))
 }
 
+// Define the data structure used to collect stats about the performance of the Minimax algorithm.
 pub struct Stats {
     pub moves: u32,
     pub explored: u32,
@@ -367,16 +372,22 @@ impl Stats {
     }
 }
 
+// Define the flag states used in a [TTEntry].
 enum Flag {
     Exact,
     Lowerbound,
     Upperbound,
 }
 
+// Define an entry in the Transposition Table.
 pub struct TTEntry {
+    // What movement was selected for the given board position.
     movement: Movement,
+    // What was the evaluation function score.
     score: i32,
+    // How deep was the evaluation conducted at.
     depth: u32,
+    // The flag used for the Alpha-Beta state of the table entry.
     flag: Flag,
 }
 
@@ -523,6 +534,8 @@ fn minimax(
 const MAX_DEPTH: u32 = 20;
 const MAX_TIME_MS: u128 = 50;
 
+// The main entry point for asking the Checkers engine to select a move for a given [Player]
+// within the context of a given [Board] state.
 pub fn get_movement(
     stats: &mut Stats,
     ctx: &MinimaxContext,

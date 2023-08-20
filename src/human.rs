@@ -1,8 +1,11 @@
+// This module contains the data structures and functions used to facilitate a terminal
+// interaction with a human playing a game of Checkers against the engine.
 use std::collections::HashMap;
 use std::io::Write;
 
 use crate::checkers::{Board, Movement, Player, Square, SquareState};
 
+// Construct a mapping of user inpt into padded array [Board] id's.
 pub struct MovementMap {
     pub map: HashMap<String, usize>,
 }
